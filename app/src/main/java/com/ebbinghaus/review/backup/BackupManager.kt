@@ -1,0 +1,212 @@
+package com.ebbinghaus.review.backup
+
+import android.content.Context
+import android.net.Uri
+import android.util.Log
+import android.webkit.MimeTypeMap
+import com.ebbinghaus.review.data.AppDatabase
+import com.ebbinghaus.review.data.ReviewItem
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.InputStreamReader
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+
+object BackupManager {
+    private val gson = Gson()
+    private const val JSON_FILENAME = "backup_data.json"
+    private const val IMAGES_DIR = "images"
+    private const val TAG = "BackupManager"
+
+    // 导出数据到用户选定的 URI (ZIP文件)
+    suspend fun exportData(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        val dao = AppDatabase.getDatabase(context).reviewDao()
+        val allItems = dao.getAllItemsSync()
+
+        try {
+            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                ZipOutputStream(BufferedOutputStream(outputStream)).use { zipOut ->
+                    // 1. 准备导出数据，并将图片复制到 ZIP 中
+                    val exportItems = allItems.map { item ->
+                        val newImagePaths = mutableListOf<String>()
+                        if (!item.imagePaths.isNullOrEmpty()) {
+                            item.imagePaths.split("|").forEachIndexed { index, pathUriString ->
+                                if (pathUriString.isNotBlank()) {
+                                    try {
+                                        val sourceUri = Uri.parse(pathUriString)
+                                        var inputStream: InputStream? = null
+                                        
+                                        // 根据 Scheme 选择读取方式
+                                        if (sourceUri.scheme == "content") {
+                                            try {
+                                                inputStream = context.contentResolver.openInputStream(sourceUri)
+                                            } catch (e: Exception) {
+                                                Log.w(TAG, "Failed to open content URI: $pathUriString", e)
+                                            }
+                                        } else if (sourceUri.scheme == "file") {
+                                            val path = sourceUri.path
+                                            if (path != null) {
+                                                val file = File(path)
+                                                if (file.exists()) {
+                                                    inputStream = FileInputStream(file)
+                                                } else {
+                                                    Log.w(TAG, "File not found: $path")
+                                                }
+                                            }
+                                        } else {
+                                            // 尝试直接作为路径处理
+                                            val file = File(pathUriString)
+                                            if (file.exists()) {
+                                                inputStream = FileInputStream(file)
+                                            }
+                                        }
+
+                                        if (inputStream != null) {
+                                            inputStream.use { input ->
+                                                val extension = getExtension(context, sourceUri, pathUriString) ?: "jpg"
+                                                // 在 ZIP 中的相对路径
+                                                val zipImageName = "${IMAGES_DIR}/${item.id}_${index}.$extension"
+                                                
+                                                zipOut.putNextEntry(ZipEntry(zipImageName))
+                                                input.copyTo(zipOut)
+                                                zipOut.closeEntry()
+                                                newImagePaths.add(zipImageName)
+                                            }
+                                        } else {
+                                            Log.e(TAG, "Could not open stream for image: $pathUriString")
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error exporting image: $pathUriString", e)
+                                    }
+                                }
+                            }
+                        }
+                        // 返回修改了图片路径的副本 (指向 ZIP 内的相对路径)
+                        item.copy(imagePaths = if (newImagePaths.isEmpty()) null else newImagePaths.joinToString("|"))
+                    }
+
+                    // 2. 写入 JSON 数据
+                    val json = gson.toJson(exportItems)
+                    zipOut.putNextEntry(ZipEntry(JSON_FILENAME))
+                    zipOut.write(json.toByteArray())
+                    zipOut.closeEntry()
+                }
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Export failed", e)
+            false
+        }
+    }
+
+    // 从用户选定的 URI (ZIP文件) 导入数据
+    suspend fun importData(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // 准备解压图片的目标目录 (app私有目录)
+            val importDir = File(context.filesDir, "imported_media")
+            if (!importDir.exists()) {
+                importDir.mkdirs()
+            }
+
+            var jsonString: String? = null
+            
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                ZipInputStream(BufferedInputStream(inputStream)).use { zipIn ->
+                    var entry = zipIn.nextEntry
+                    while (entry != null) {
+                        val fileName = entry.name
+                        if (!entry.isDirectory) {
+                            if (fileName == JSON_FILENAME || fileName.endsWith(JSON_FILENAME)) {
+                                jsonString = InputStreamReader(zipIn).readText()
+                            } else if (fileName.contains(IMAGES_DIR)) {
+                                // 解压图片，扁平化存入 imported_media
+                                val simpleFileName = File(fileName).name
+                                val outFile = File(importDir, simpleFileName)
+                                
+                                FileOutputStream(outFile).use { fileOut ->
+                                    zipIn.copyTo(fileOut)
+                                }
+                            }
+                        }
+                        zipIn.closeEntry()
+                        entry = zipIn.nextEntry
+                    }
+                }
+            }
+
+            if (jsonString != null) {
+                val listType = object : TypeToken<List<ReviewItem>>() {}.type
+                val importedItems: List<ReviewItem> = gson.fromJson(jsonString, listType)
+
+                // 修正图片路径为本地绝对路径
+                val finalItems = importedItems.map { item ->
+                    val fixedPaths = if (!item.imagePaths.isNullOrEmpty()) {
+                        item.imagePaths.split("|").mapNotNull { path ->
+                            // 检查路径是否包含 images 目录特征
+                            if (path.contains(IMAGES_DIR)) {
+                                val fileName = File(path).name
+                                val localFile = File(importDir, fileName)
+                                if (localFile.exists()) {
+                                    Uri.fromFile(localFile).toString() // file:///...
+                                } else {
+                                    null // 图片未找到
+                                }
+                            } else {
+                                path // 兼容旧数据或非打包图片
+                            }
+                        }.joinToString("|")
+                    } else null
+                    
+                    item.copy(imagePaths = if (fixedPaths.isNullOrBlank()) null else fixedPaths)
+                }
+
+                val dao = AppDatabase.getDatabase(context).reviewDao()
+                
+                // 导入策略：全量覆盖
+                dao.deleteAll()
+                dao.insertAll(finalItems) 
+                
+                return@withContext true
+            }
+            
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "Import failed", e)
+            false
+        }
+    }
+
+    private fun getExtension(context: Context, uri: Uri, originalPath: String): String? {
+        try {
+            // 1. Try from MimeType (ContentProvider)
+            if (uri.scheme == "content") {
+                val mime = context.contentResolver.getType(uri)
+                if (mime != null) {
+                    return MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+                }
+            }
+            
+            // 2. Try from Path String (File extension)
+            val fileExtension = MimeTypeMap.getFileExtensionFromUrl(Uri.encode(originalPath))
+            if (!fileExtension.isNullOrBlank()) return fileExtension
+
+            // 3. Manual fallback
+            val lastDot = originalPath.lastIndexOf('.')
+            if (lastDot != -1 && lastDot < originalPath.length - 1) {
+                return originalPath.substring(lastDot + 1)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
+    }
+}
