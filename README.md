@@ -100,4 +100,26 @@
 *   **Serialization**: Gson (JSON Export/Import)
 
 ---
+
+## 📝 更新日志 (Changelog)
+
+### v1.0.0 (First Release)
+- **Core Features**:
+  - 实现了完整的艾宾浩斯遗忘曲线算法 (8个阶段)。
+  - 首页看板：支持“待复习”与“今日已学”任务的实时展示。
+  - 知识录入：支持图文混排、多图上传。
+  - 知识详情与复习：支持全屏图片浏览、双指缩放。
+  - 历史记录：长按列表项可查看详细复习日志。
+- **Advanced Features**:
+  - 智能日历：支持基于当前任务推演未来的复习计划，带有热力图标记。
+  - 回收站：支持软删除、一键恢复及自动清理过期项目。
+  - 数据备份：支持 JSON 格式的全量导入与导出。
+- **System Integration**:
+  - 桌面 Widget：实时显示待复习数量。
+  - 后台提醒：每 15 分钟检查并发送复习通知。
+- **UI/UX**:
+  - 采用 Material Design 3 风格。
+  - 优化了滑动删除、防误触确认等交互体验。
+
+---
 *Designed with ❤️ for lifelong learners.*
