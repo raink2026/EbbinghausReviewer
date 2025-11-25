@@ -3,6 +3,7 @@ package com.ebbinghaus.review.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ebbinghaus.review.R
 import com.ebbinghaus.review.data.AppDatabase
 import com.ebbinghaus.review.data.User
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,8 +24,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     init {
         // 初始化检查：如果没有用户，创建一个默认用户
         viewModelScope.launch {
-            if (userDao.getCurrentUserSync() == null) { // 需在 Dao 补一个 suspend fun getCurrentUserSync(): User?
-                 userDao.insertUser(User(name = "默认用户", isCurrent = true))
+            if (userDao.getCurrentUserSync() == null) {
+                 userDao.insertUser(User(name = application.getString(R.string.default_user), isCurrent = true))
             }
         }
     }

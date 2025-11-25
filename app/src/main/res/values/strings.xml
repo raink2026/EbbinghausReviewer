@@ -17,4 +17,5 @@
     <string name="create_new_user">创建新用户</string>
     <string name="nickname">昵称</string>
     <string name="create">创建</string>
+    <string name="default_user">默认用户</string>
 </resources>
