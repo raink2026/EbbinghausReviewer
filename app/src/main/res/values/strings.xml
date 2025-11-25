@@ -1,3 +1,20 @@
 <resources>
     <string name="app_name">EbbinghausReview</string>
+    <string name="not_logged_in">未登录</string>
+    <string name="data_management">数据管理</string>
+    <string name="recy__bin">回收站</string>
+    <string name="export_data">导出数据</string>
+    <string name="import_backup">导入备份</string>
+    <string name="personalization">个性化</string>
+    <string name="deep_starry_sky_background">深邃星空背景</string>
+    <string name="font_size">字体大小</string>
+    <string name="standard">标准</string>
+    <string name="about">关于</string>
+    <string name="app_version">艾宾浩斯复习助手 v1.2.0</string>
+    <string name="switch_user">切换用户</string>
+    <string name="add_new_user">+ 新建用户</string>
+    <string name="close">关闭</string>
+    <string name="create_new_user">创建新用户</string>
+    <string name="nickname">昵称</string>
+    <string name="create">创建</string>
 </resources>

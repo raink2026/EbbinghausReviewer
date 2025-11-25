@@ -5,11 +5,12 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-// 【新增】ReviewLog::class
-@Database(entities = [ReviewItem::class, ReviewLog::class, PlanItem::class], version = 2, exportSchema = false)
+// 【新增】User::class
+@Database(entities = [ReviewItem::class, ReviewLog::class, PlanItem::class, User::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun reviewDao(): ReviewDao
     abstract fun planDao(): PlanDao
+    abstract fun userDao(): UserDao
 
     companion object {
         @Volatile

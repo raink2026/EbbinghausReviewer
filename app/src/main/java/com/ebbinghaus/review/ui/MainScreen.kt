@@ -92,6 +92,7 @@ fun MainScreen(activity: MainActivity) {
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
+                    navController = navController,
                     onExport = { activity.launchExport() },
                     onImport = { activity.launchImport() }
                 )
