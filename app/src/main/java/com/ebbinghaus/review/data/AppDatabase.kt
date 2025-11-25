@@ -6,9 +6,10 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 // 【新增】ReviewLog::class
-@Database(entities = [ReviewItem::class, ReviewLog::class], version = 1, exportSchema = false)
+@Database(entities = [ReviewItem::class, ReviewLog::class, PlanItem::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun reviewDao(): ReviewDao
+    abstract fun planDao(): PlanDao
 
     companion object {
         @Volatile
@@ -21,6 +22,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ebbinghaus_db"
                 )
+                .fallbackToDestructiveMigration()
                 .build().also { Instance = it }
             }
         }
