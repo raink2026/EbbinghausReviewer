@@ -1,14 +1,15 @@
 
-    package com.ebbinghaus.review.ui
+package com.ebbinghaus.review.ui
 
-    import androidx.compose.foundation.background
-    import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
     import androidx.compose.foundation.lazy.LazyColumn
     import androidx.compose.foundation.lazy.items
     import androidx.compose.material.icons.Icons
     import androidx.compose.material.icons.filled.Add
     import androidx.compose.material.icons.filled.Check
     import androidx.compose.material.icons.filled.Close
+    import androidx.compose.material.icons.filled.DateRange
     import androidx.compose.material3.*
     import androidx.compose.runtime.*
     import androidx.compose.ui.Alignment
@@ -19,9 +20,11 @@
     import androidx.lifecycle.viewmodel.compose.viewModel
     import com.ebbinghaus.review.data.PlanItem
     import com.ebbinghaus.review.data.PlanStatus
+    import com.ebbinghaus.review.ui.theme.GreenDone
+    import com.ebbinghaus.review.ui.theme.RedGivenUp
 
     @Composable
-    fun PlanScreen(viewModel: PlanViewModel = viewModel()) {
+    fun PlanScreen(viewModel: PlanViewModel = viewModel(), onNavigateToStats: () -> Unit) {
         val plans by viewModel.todayPlans.collectAsState()
 
         // 状态：是否显示清理弹窗
@@ -38,8 +41,20 @@
         }
 
         Scaffold(
+            topBar = {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PlanProgressHeader(plans)
+
+                    IconButton(onClick = onNavigateToStats) {
+                        Icon(Icons.Default.DateRange, contentDescription = "Statistics", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            },
             floatingActionButton = {
-                // 简单的添加按钮逻辑 (实际开发可配合 Dialog 或底部输入栏)
                 var showAddDialog by remember { mutableStateOf(false) }
                 if (showAddDialog) {
                     AddPlanDialog(
@@ -56,29 +71,11 @@
             }
         ) { innerPadding ->
             Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
-                // 顶部：进度条 (正向反馈)
-                val total = plans.size
-                val done = plans.count { it.status == PlanStatus.DONE }
-                if (total > 0) {
-                    LinearProgressIndicator(
-                        progress = done.toFloat() / total,
-                        modifier = Modifier.fillMaxWidth().height(4.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                    Text(
-                        "今日完成度: $done / $total",
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(8.dp).align(Alignment.CenterHorizontally),
-                        color = Color.Gray
-                    )
-                } else {
+                if (plans.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                         Text("制定今天的计划吧！", color = Color.Gray)
                     }
                 }
-
-                // 列表
                 LazyColumn {
                     items(plans, key = { it.id }) { item ->
                         PlanItemCard(
@@ -129,7 +126,7 @@
         Card(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isDone) Color(0xFFE8F5E9) else if (isGivenUp) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.surface
+                containerColor = if (isDone) GreenDone else if (isGivenUp) RedGivenUp else MaterialTheme.colorScheme.surface
             )
         ) {
             Row(
@@ -173,3 +170,23 @@
         )
     }
 
+    @Composable
+    fun PlanProgressHeader(plans: List<PlanItem>) {
+        val total = plans.size
+        val done = plans.count { it.status == PlanStatus.DONE }
+
+        Column {
+            LinearProgressIndicator(
+                progress = if (total > 0) done.toFloat() / total else 0f,
+                modifier = Modifier.fillMaxWidth(0.5f).height(4.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+            Text(
+                "今日完成度: $done / $total",
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(top = 4.dp),
+                color = Color.Gray
+            )
+        }
+    }

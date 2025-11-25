@@ -79,7 +79,16 @@ fun MainScreen(activity: MainActivity) {
                 )
             }
             composable(Screen.Plan.route) {
-                PlanScreen()
+                PlanScreen(
+                    onNavigateToStats = { navController.navigate("plan_stats") }
+                )
+            }
+            composable("plan_stats") {
+                val planViewModel: PlanViewModel = viewModel()
+                PlanStatsScreen(
+                    viewModel = planViewModel,
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
