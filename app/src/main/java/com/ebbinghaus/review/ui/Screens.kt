@@ -51,21 +51,13 @@ fun HomeScreen(
     navController: NavController,
     viewModel: MainViewModel,
     dueItems: List<ReviewItem>,
-    todayReviewedItems: List<ReviewItem>,
-    onExport: () -> Unit,
-    onImport: () -> Unit
+    todayReviewedItems: List<ReviewItem>
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("复习列表") },
                 actions = {
-                    IconButton(onClick = onImport) {
-                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Import")
-                    }
-                    IconButton(onClick = onExport) {
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Export")
-                    }
                     // 回收站入口
                     IconButton(onClick = { navController.navigate("trash") }) {
                         Icon(Icons.Default.Delete, contentDescription = "Trash")

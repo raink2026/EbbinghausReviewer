@@ -6,22 +6,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import com.ebbinghaus.review.ui.AddItemScreen
-import com.ebbinghaus.review.ui.HistoryScreen
-import com.ebbinghaus.review.ui.HomeScreen
-import com.ebbinghaus.review.ui.MainViewModel
-import com.ebbinghaus.review.ui.ReviewScreen
-import com.ebbinghaus.review.ui.TrashScreen
+import com.ebbinghaus.review.ui.MainScreen
 import com.ebbinghaus.review.ui.theme.EbbinghausReviewTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -77,51 +63,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             AppMaterialTheme {
-                val navController = rememberNavController()
-                val viewModel: MainViewModel = viewModel()
-                AppNavigation(navController, viewModel, this) 
+                MainScreen(activity = this)
             }
-        }
-    }
-}
-
-@Composable
-fun AppNavigation(navController: NavHostController, viewModel: MainViewModel, activity: MainActivity) {
-    val dueItems by viewModel.dueItems.collectAsState()
-    val todayReviewedItems by viewModel.todayReviewedItems.collectAsState()
-
-    NavHost(navController = navController, startDestination = "home") {
-        
-        composable("home") {
-            HomeScreen(
-                navController = navController, 
-                viewModel = viewModel, 
-                dueItems = dueItems, 
-                todayReviewedItems = todayReviewedItems, 
-                onExport = { activity.launchExport() }, 
-                onImport = { activity.launchImport() }
-            )
-        }
-        
-        composable("add") {
-            AddItemScreen(navController, viewModel)
-        }
-        
-        composable(
-            route = "review/{itemId}",
-            arguments = listOf(navArgument("itemId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val itemId = backStackEntry.arguments?.getLong("itemId") ?: 0L
-            ReviewScreen(navController, viewModel, itemId)
-        }
-
-        composable("history") {
-            HistoryScreen(navController, viewModel)
-        }
-
-        // 【新增】回收站路由
-        composable("trash") {
-            TrashScreen(navController, viewModel)
         }
     }
 }
