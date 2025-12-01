@@ -18,4 +18,44 @@
     <string name="nickname">昵称</string>
     <string name="create">创建</string>
     <string name="default_user">默认用户</string>
+
+    <!-- UI Strings -->
+    <string name="review_list">复习列表</string>
+    <string name="to_review">待复习</string>
+    <string name="no_review_tasks">待复习任务已清空！</string>
+    <string name="studied_today">今日已学</string>
+    <string name="no_study_today">今天还没学习哦</string>
+    <string name="delete_confirm_title">删除确认</string>
+    <string name="delete_confirm_message">确定要删除这个知识点吗？\n它将被移入回收站，15天后自动彻底删除。</string>
+    <string name="delete">删除</string>
+    <string name="cancel">取消</string>
+    <string name="review_history_prefix">复习历史：</string>
+    <string name="no_history_logs">暂无复习记录</string>
+    <string name="remembered_stage">记得 -> 阶段</string>
+    <string name="forgot_reset">忘了 -> 重置</string>
+    <string name="add_new_item">添加新知识点</string>
+    <string name="title_hint">标题 (例如：单词)</string>
+    <string name="description_hint">描述 (可选，显示在卡片上)</string>
+    <string name="content_hint">内容 / 答案</string>
+    <string name="add_images">添加图片 (支持多选)</string>
+    <string name="continue_add_images">继续添加图片</string>
+    <string name="selected_images_count">已选 %d 张图片</string>
+    <string name="save_to_queue">保存加入复习队列</string>
+    <string name="reviewing">正在复习</string>
+    <string name="loading">加载中...</string>
+    <string name="tap_to_show_answer">点击显示答案</string>
+    <string name="skip">放弃 (Skip)</string>
+    <string name="done">完成复习 (Done)</string>
+    <string name="finished_today">今日已完成</string>
+    <string name="stage_prefix">阶段:</string>
+    <string name="completed">已完成</string>
+
+    <!-- ViewModel Strings -->
+    <string name="add_success">添加成功</string>
+    <string name="review_success">复习打卡成功！进入下一阶段</string>
+    <string name="review_reset">没关系，进度已重置，下次加油！</string>
+    <string name="moved_to_trash">已移入回收站 (15天后自动清除)</string>
+    <string name="restored_from_trash">已恢复到复习列表</string>
+    <string name="deleted_permanently">已彻底删除，无法找回</string>
+    <string name="snoozed">已推迟 10 分钟</string>
 </resources>

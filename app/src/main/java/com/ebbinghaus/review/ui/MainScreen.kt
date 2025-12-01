@@ -25,6 +25,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ebbinghaus.review.MainActivity
+import com.ebbinghaus.review.ui.add.AddItemScreen
+import com.ebbinghaus.review.ui.home.HomeScreen
+import com.ebbinghaus.review.ui.review.ReviewScreen
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home : Screen("home", "复习", Icons.Filled.Home)

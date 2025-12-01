@@ -1,6 +1,6 @@
 package com.ebbinghaus.review.utils
 
-import java.util.Calendar
+
 
 // object 关键字在 Kotlin 中即“单例模式”，相当于 Java 的 static utils 类
 object EbbinghausManager {
@@ -21,12 +21,10 @@ object EbbinghausManager {
 
         val daysToAdd = INTERVAL_DAYS[currentStage]
         
-        // 使用 Calendar 进行日期计算 (Java 8+ 也可用 Instant/LocalDateTime，但在 Android 兼容性上 Calendar 依然稳健)
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = fromTime
-        calendar.add(Calendar.DAY_OF_YEAR, daysToAdd)
-        
-        return calendar.timeInMillis
+        // 使用 java.time (API 26+)
+        return java.time.Instant.ofEpochMilli(fromTime)
+            .plus(daysToAdd.toLong(), java.time.temporal.ChronoUnit.DAYS)
+            .toEpochMilli()
     }
 
     /**

@@ -10,6 +10,7 @@ import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ebbinghaus.review.R
 import com.ebbinghaus.review.data.AppDatabase
 import com.ebbinghaus.review.data.ReviewItem
 import com.ebbinghaus.review.data.ReviewLog
@@ -23,9 +24,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -38,19 +43,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val todayReviewedItems: StateFlow<List<ReviewItem>> = run {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val start = calendar.timeInMillis
+        val todayStart = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val todayEnd = LocalDate.now().atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         
-        calendar.set(Calendar.HOUR_OF_DAY, 23)
-        calendar.set(Calendar.MINUTE, 59)
-        calendar.set(Calendar.SECOND, 59)
-        val end = calendar.timeInMillis
-        
-        dao.getTodayReviewedItems(start, end, System.currentTimeMillis())
+        dao.getTodayReviewedItems(todayStart, todayEnd, System.currentTimeMillis())
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     }
 
@@ -95,7 +91,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             updateWidget()
             loadHeatMapData()
-            showToast("添加成功")
+            showToast(getApplication<Application>().getString(R.string.add_success))
         }
     }
 
@@ -111,7 +107,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val extension = if (mime != null) MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) else "jpg"
                 val ext = extension ?: "jpg"
 
-                val fileName = "img_${System.currentTimeMillis()}_${(Math.random() * 10000).toInt()}.$ext"
+                val fileName = "img_${System.currentTimeMillis()}_${UUID.randomUUID()}.$ext"
                 val file = File(directory, fileName)
 
                 FileOutputStream(file).use { outputStream ->
@@ -151,13 +147,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     dao.update(item.copy(stage = nextStage, nextReviewTime = nextTime))
                 }
-                showToast("复习打卡成功！进入下一阶段")
+                showToast(getApplication<Application>().getString(R.string.review_success))
             } else {
                 // 忘了：重置
                 nextStage = 0
                 nextTime = EbbinghausManager.calculateNextReviewTime(0)
                 dao.update(item.copy(stage = 0, nextReviewTime = nextTime))
-                showToast("没关系，进度已重置，下次加油！")
+                showToast(getApplication<Application>().getString(R.string.review_reset))
             }
 
             // 记录 Log
@@ -181,7 +177,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             dao.update(item.copy(isDeleted = true, deletedTime = System.currentTimeMillis()))
             updateWidget()
             loadHeatMapData()
-            showToast("已移入回收站 (15天后自动清除)")
+            showToast(getApplication<Application>().getString(R.string.moved_to_trash))
         }
     }
 
@@ -191,7 +187,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             dao.update(item.copy(isDeleted = false, deletedTime = null))
             updateWidget()
             loadHeatMapData()
-            showToast("已恢复到复习列表")
+            showToast(getApplication<Application>().getString(R.string.restored_from_trash))
         }
     }
 
@@ -199,7 +195,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deletePermanently(item: ReviewItem) {
         viewModelScope.launch {
             dao.delete(item)
-            showToast("已彻底删除，无法找回")
+            showToast(getApplication<Application>().getString(R.string.deleted_permanently))
         }
     }
 
@@ -211,7 +207,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val snoozedTime = System.currentTimeMillis() + 10 * 60 * 1000
             dao.update(item.copy(nextReviewTime = snoozedTime))
-            showToast("已推迟 10 分钟")
+            showToast(getApplication<Application>().getString(R.string.snoozed))
         }
     }
     
@@ -231,13 +227,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val activeItems = dao.getAllItemsSync().filter { !it.isFinished }
             val dateSet = mutableSetOf<String>()
-            val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
             activeItems.forEach { item ->
                 var currentStage = item.stage
                 var currentTime = item.nextReviewTime
                 for (i in 0..15) {
-                    dateSet.add(formatter.format(Date(currentTime)))
+                    val date = Instant.ofEpochMilli(currentTime).atZone(ZoneId.systemDefault()).toLocalDate()
+                    dateSet.add(date.format(formatter))
                     val nextTime = EbbinghausManager.calculateNextReviewTime(currentStage, currentTime)
                     if (nextTime == -1L) break
                     currentTime = nextTime
@@ -252,13 +249,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectDate(year: Int, month: Int, day: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            val calendar = Calendar.getInstance()
-            calendar.set(year, month - 1, day, 0, 0, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val targetStart = calendar.timeInMillis
-            
-            calendar.set(year, month - 1, day, 23, 59, 59)
-            val end = calendar.timeInMillis
+            val date = LocalDate.of(year, month, day)
+            val targetStart = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val end = date.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
             val activeItems = dao.getAllItemsSync().filter { !it.isFinished }
             val planItems = mutableListOf<ReviewItem>()
