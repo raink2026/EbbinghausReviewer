@@ -41,6 +41,9 @@ interface ReviewDao {
     // 导出 (过滤已删除)
     @Query("SELECT * FROM review_items WHERE isDeleted = 0")
     suspend fun getAllItemsSync(): List<ReviewItem>
+
+    @Query("SELECT stage, nextReviewTime, isFinished FROM review_items WHERE isFinished = 0 AND isDeleted = 0")
+    suspend fun getItemsForHeatMap(): List<ReviewItemMinimal>
     
     @Query("SELECT * FROM review_items WHERE id = :id")
     suspend fun getById(id: Long): ReviewItem?

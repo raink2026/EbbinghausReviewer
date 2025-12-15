@@ -5,8 +5,6 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,6 +12,8 @@ import com.ebbinghaus.review.R
 import com.ebbinghaus.review.data.AppDatabase
 import com.ebbinghaus.review.data.ReviewItem
 import com.ebbinghaus.review.data.ReviewLog
+import com.ebbinghaus.review.data.repository.ImageRepository
+import com.ebbinghaus.review.data.repository.ReviewRepository
 import com.ebbinghaus.review.utils.EbbinghausManager
 import com.ebbinghaus.review.workers.ReviewWidgetProvider
 import kotlinx.coroutines.Dispatchers
@@ -22,43 +22,41 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.UUID
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val dao = AppDatabase.getDatabase(application).reviewDao()
+    // Ideally these should be injected via DI (Hilt/Koin), but for now we construct them here.
+    private val database = AppDatabase.getDatabase(application)
+    private val repository = ReviewRepository(database.reviewDao(), ImageRepository(application))
 
-    val dueItems: StateFlow<List<ReviewItem>> = dao.getDueItems(System.currentTimeMillis())
+    val dueItems: StateFlow<List<ReviewItem>> = repository.getDueItems(System.currentTimeMillis())
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allActiveItems: StateFlow<List<ReviewItem>> = dao.getAllActiveItems()
+    val allActiveItems: StateFlow<List<ReviewItem>> = repository.allActiveItems
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val todayReviewedItems: StateFlow<List<ReviewItem>> = run {
         val todayStart = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val todayEnd = LocalDate.now().atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         
-        dao.getTodayReviewedItems(todayStart, todayEnd, System.currentTimeMillis())
+        repository.getTodayReviewedItems(todayStart, todayEnd, System.currentTimeMillis())
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     }
 
     // 回收站列表
-    val deletedItems: StateFlow<List<ReviewItem>> = dao.getDeletedItems()
+    val deletedItems: StateFlow<List<ReviewItem>> = repository.deletedItems
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         // 初始化时清理超过 15 天的垃圾
         viewModelScope.launch {
             val threshold = System.currentTimeMillis() - 15 * 24 * 60 * 60 * 1000L
-            dao.deleteExpiredItems(threshold)
+            repository.deleteExpiredItems(threshold)
         }
     }
 
@@ -71,100 +69,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addItem(title: String, description: String, content: String, imagePaths: List<String>) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                // 将图片复制到应用内部存储
-                val savedImagePaths = imagePaths.map { uriString ->
-                    copyImageToInternalStorage(getApplication(), Uri.parse(uriString)) ?: uriString
-                }
-                
-                val imagesString = if (savedImagePaths.isNotEmpty()) savedImagePaths.joinToString("|") else null
-                
-                val newItem = ReviewItem(
-                    title = title,
-                    description = description,
-                    content = content,
-                    imagePaths = imagesString,
-                    nextReviewTime = System.currentTimeMillis(), 
-                    stage = 0
-                )
-                dao.insert(newItem)
+            try {
+                repository.addItem(title, description, content, imagePaths)
+                updateWidget()
+                loadHeatMapData()
+                showToast(getApplication<Application>().getString(R.string.add_success))
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showToast("Failed to add item: ${e.message}")
             }
-            updateWidget()
-            loadHeatMapData()
-            showToast(getApplication<Application>().getString(R.string.add_success))
-        }
-    }
-
-    private fun copyImageToInternalStorage(context: Context, uri: Uri): String? {
-        return try {
-            val contentResolver = context.contentResolver
-            contentResolver.openInputStream(uri)?.use { inputStream ->
-                val directory = File(context.filesDir, "review_images")
-                if (!directory.exists()) directory.mkdirs()
-
-                // 获取扩展名
-                val mime = contentResolver.getType(uri)
-                val extension = if (mime != null) MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) else "jpg"
-                val ext = extension ?: "jpg"
-
-                val fileName = "img_${System.currentTimeMillis()}_${UUID.randomUUID()}.$ext"
-                val file = File(directory, fileName)
-
-                FileOutputStream(file).use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-                
-                // 确保文件存在并且大小大于0
-                if (file.exists() && file.length() > 0) {
-                    return Uri.fromFile(file).toString()
-                } else {
-                    // 如果文件创建失败，删除空文件
-                    if (file.exists()) {
-                        file.delete()
-                    }
-                }
-            }
-            null
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
         }
     }
 
     fun markAsReviewed(item: ReviewItem, remembered: Boolean) {
         viewModelScope.launch {
-            val currentStage = item.stage
-            var nextStage = currentStage
-            var nextTime = item.nextReviewTime
+            repository.markAsReviewed(item, remembered)
 
             if (remembered) {
-                nextStage = item.stage + 1
-                val calculatedTime = EbbinghausManager.calculateNextReviewTime(item.stage)
-                nextTime = if (calculatedTime == -1L) item.nextReviewTime else calculatedTime 
-                
-                if (calculatedTime == -1L) {
-                    dao.update(item.copy(stage = nextStage, isFinished = true))
-                } else {
-                    dao.update(item.copy(stage = nextStage, nextReviewTime = nextTime))
-                }
                 showToast(getApplication<Application>().getString(R.string.review_success))
             } else {
-                // 忘了：重置
-                nextStage = 0
-                nextTime = EbbinghausManager.calculateNextReviewTime(0)
-                dao.update(item.copy(stage = 0, nextReviewTime = nextTime))
                 showToast(getApplication<Application>().getString(R.string.review_reset))
             }
-
-            // 记录 Log
-            val log = ReviewLog(
-                itemId = item.id,
-                reviewTime = System.currentTimeMillis(),
-                stageBefore = currentStage,
-                action = if (remembered) "REMEMBER" else "FORGET",
-                stageAfter = if (remembered && EbbinghausManager.calculateNextReviewTime(item.stage) == -1L) 99 else nextStage
-            )
-            dao.insertLog(log)
 
             updateWidget()
             loadHeatMapData()
@@ -174,7 +99,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // 软删除
     fun moveToTrash(item: ReviewItem) {
         viewModelScope.launch {
-            dao.update(item.copy(isDeleted = true, deletedTime = System.currentTimeMillis()))
+            repository.moveToTrash(item)
             updateWidget()
             loadHeatMapData()
             showToast(getApplication<Application>().getString(R.string.moved_to_trash))
@@ -184,7 +109,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // 从回收站恢复
     fun restoreFromTrash(item: ReviewItem) {
         viewModelScope.launch {
-            dao.update(item.copy(isDeleted = false, deletedTime = null))
+            repository.restoreFromTrash(item)
             updateWidget()
             loadHeatMapData()
             showToast(getApplication<Application>().getString(R.string.restored_from_trash))
@@ -194,25 +119,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // 彻底删除
     fun deletePermanently(item: ReviewItem) {
         viewModelScope.launch {
-            dao.delete(item)
+            repository.deletePermanently(item)
             showToast(getApplication<Application>().getString(R.string.deleted_permanently))
         }
     }
 
     suspend fun getItemLogs(itemId: Long): List<ReviewLog> {
-        return dao.getLogsByItemId(itemId)
+        return repository.getItemLogs(itemId)
     }
 
     fun snoozeItem(item: ReviewItem) {
         viewModelScope.launch {
             val snoozedTime = System.currentTimeMillis() + 10 * 60 * 1000
-            dao.update(item.copy(nextReviewTime = snoozedTime))
+            repository.updateItem(item.copy(nextReviewTime = snoozedTime))
             showToast(getApplication<Application>().getString(R.string.snoozed))
         }
     }
     
     suspend fun getItemById(id: Long): ReviewItem? {
-        return dao.getById(id)
+        return repository.getById(id)
     }
 
     // === 日历功能区 ===
@@ -225,13 +150,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadHeatMapData() {
         viewModelScope.launch(Dispatchers.IO) {
-            val activeItems = dao.getAllItemsSync().filter { !it.isFinished }
+            // Optimization: Use specific query to avoid loading heavy content/images
+            val minimalItems = repository.getItemsForHeatMap()
+
             val dateSet = mutableSetOf<String>()
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
-            activeItems.forEach { item ->
+            minimalItems.forEach { item ->
                 var currentStage = item.stage
                 var currentTime = item.nextReviewTime
+                // Only calculate if the item is not finished yet, as finished items are not scheduled
+                // However, the query already filters isFinished=0.
+
+                // Note: Logic logic was: for i in 0..15.
+                // We keep the same logic.
                 for (i in 0..15) {
                     val date = Instant.ofEpochMilli(currentTime).atZone(ZoneId.systemDefault()).toLocalDate()
                     dateSet.add(date.format(formatter))
@@ -253,7 +185,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val targetStart = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             val end = date.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-            val activeItems = dao.getAllItemsSync().filter { !it.isFinished }
+            // For detailed history, we still need full items to display
+            val activeItems = repository.getAllItemsSync().filter { !it.isFinished }
             val planItems = mutableListOf<ReviewItem>()
 
             activeItems.forEach { item ->

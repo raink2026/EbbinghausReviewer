@@ -72,9 +72,7 @@ fun ReviewScreen(
             Box(modifier = Modifier.padding(innerPadding)) { Text(stringResource(R.string.loading)) }
         } else {
             val currentItem = item!!
-            // 修复 Bug 1: 判断是否允许复习 (今天没完成 且 未到期 -> 不可复习)
-            // 逻辑：如果 nextReviewTime > Now，说明还没到时间（或者是已经复习完了被推到未来了）
-            val isReviewable = !currentItem.isFinished && currentItem.nextReviewTime <= System.currentTimeMillis()
+            val isReviewable = currentItem.isReviewable
             
             Column(
                 modifier = Modifier
