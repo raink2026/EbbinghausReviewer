@@ -6,8 +6,10 @@ import android.util.Log
 import android.webkit.MimeTypeMap
 import com.ebbinghaus.review.data.AppDatabase
 import com.ebbinghaus.review.data.ReviewItem
+import com.ebbinghaus.review.utils.AppConstants
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.google.gson.stream.JsonWriter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
@@ -17,14 +19,13 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 object BackupManager {
     private val gson = Gson()
-    private const val JSON_FILENAME = "backup_data.json"
-    private const val IMAGES_DIR = "images"
     private const val TAG = "BackupManager"
 
     // 导出数据到用户选定的 URI (ZIP文件)
@@ -35,8 +36,35 @@ object BackupManager {
         try {
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                 ZipOutputStream(BufferedOutputStream(outputStream)).use { zipOut ->
-                    // 1. 准备导出数据，并将图片复制到 ZIP 中
-                    val exportItems = allItems.map { item ->
+
+                    // 1. Create a list of items with modified image paths (but do not modify DB items)
+                    // We need to write them to JSON stream one by one or as a list, but we first need to copy images.
+                    // To stream efficiently, we probably want to iterate and write.
+                    // However, we need to output the JSON structure properly.
+
+                    // Since we are writing to a single ZIP entry for JSON, we open that entry first?
+                    // No, usually we write images to ZIP entries, and the JSON file as another entry.
+                    // The JSON refers to images by relative path in ZIP.
+
+                    // Strategy:
+                    // Loop through items, copy their images to ZIP, update the item object with new path,
+                    // and collect these updated items to write to JSON.
+                    // BUT, collecting all updated items in memory brings back the OOM risk if list is huge.
+                    // So we must stream the JSON writing.
+
+                    // We cannot write to JSON entry and Image entries simultaneously in standard ZipOutputStream.
+                    // Standard ZipOutputStream requires putNextEntry -> write -> closeEntry.
+
+                    // Workaround:
+                    // 1. We can write images first. But we need to update the item references.
+                    //    We can maintain the stream of updated items.
+                    //    If the list of items itself is too big for memory, we are in trouble anyway unless we cursor it.
+                    //    Dao.getAllItemsSync() loads all into memory.
+                    //    For the purpose of this task (fix P1 OOM in Gson serialization), we assume List<ReviewItem> fits in memory,
+                    //    but the JSON String generation + Byte Array caused the OOM.
+                    //    So we iterate, copy images, create updated item object, add to a list (or better, yield it).
+
+                    val updatedItems = allItems.map { item ->
                         val newImagePaths = mutableListOf<String>()
                         if (!item.imagePaths.isNullOrEmpty()) {
                             item.imagePaths.split("|").forEachIndexed { index, pathUriString ->
@@ -74,7 +102,7 @@ object BackupManager {
                                             inputStream.use { input ->
                                                 val extension = getExtension(context, sourceUri, pathUriString) ?: "jpg"
                                                 // 在 ZIP 中的相对路径
-                                                val zipImageName = "${IMAGES_DIR}/${item.id}_${index}.$extension"
+                                                val zipImageName = "${AppConstants.BACKUP_IMAGES_DIR}/${item.id}_${index}.$extension"
                                                 
                                                 zipOut.putNextEntry(ZipEntry(zipImageName))
                                                 input.copyTo(zipOut)
@@ -94,10 +122,11 @@ object BackupManager {
                         item.copy(imagePaths = if (newImagePaths.isEmpty()) null else newImagePaths.joinToString("|"))
                     }
 
-                    // 2. 写入 JSON 数据
-                    val json = gson.toJson(exportItems)
-                    zipOut.putNextEntry(ZipEntry(JSON_FILENAME))
-                    zipOut.write(json.toByteArray())
+                    // 2. 写入 JSON 数据 using Streaming to avoid OOM
+                    zipOut.putNextEntry(ZipEntry(AppConstants.BACKUP_JSON_FILENAME))
+                    val writer = OutputStreamWriter(zipOut)
+                    gson.toJson(updatedItems, object : TypeToken<List<ReviewItem>>() {}.type, writer)
+                    writer.flush() // Flush but do not close writer, as it would close zipOut
                     zipOut.closeEntry()
                 }
             }
@@ -125,9 +154,9 @@ object BackupManager {
                     while (entry != null) {
                         val fileName = entry.name
                         if (!entry.isDirectory) {
-                            if (fileName == JSON_FILENAME || fileName.endsWith(JSON_FILENAME)) {
+                            if (fileName == AppConstants.BACKUP_JSON_FILENAME || fileName.endsWith(AppConstants.BACKUP_JSON_FILENAME)) {
                                 jsonString = InputStreamReader(zipIn).readText()
-                            } else if (fileName.contains(IMAGES_DIR)) {
+                            } else if (fileName.contains(AppConstants.BACKUP_IMAGES_DIR)) {
                                 // 解压图片，扁平化存入 imported_media
                                 val simpleFileName = File(fileName).name
                                 val outFile = File(importDir, simpleFileName)
@@ -152,7 +181,7 @@ object BackupManager {
                     val fixedPaths = if (!item.imagePaths.isNullOrEmpty()) {
                         item.imagePaths.split("|").mapNotNull { path ->
                             // 检查路径是否包含 images 目录特征
-                            if (path.contains(IMAGES_DIR)) {
+                            if (path.contains(AppConstants.BACKUP_IMAGES_DIR)) {
                                 val fileName = File(path).name
                                 val localFile = File(importDir, fileName)
                                 if (localFile.exists()) {

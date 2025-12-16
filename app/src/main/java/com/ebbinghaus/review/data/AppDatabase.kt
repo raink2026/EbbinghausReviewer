@@ -4,9 +4,10 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.ebbinghaus.review.utils.AppConstants
 
 // 【新增】User::class
-@Database(entities = [ReviewItem::class, ReviewLog::class, PlanItem::class, User::class], version = 3, exportSchema = false)
+@Database(entities = [ReviewItem::class, ReviewLog::class, PlanItem::class, User::class], version = 3, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun reviewDao(): ReviewDao
     abstract fun planDao(): PlanDao
@@ -21,9 +22,9 @@ abstract class AppDatabase : RoomDatabase() {
                 Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "ebbinghaus_db"
+                    AppConstants.DB_NAME
                 )
-                .fallbackToDestructiveMigration()
+                // Removed fallbackToDestructiveMigration for data safety
                 .build().also { Instance = it }
             }
         }

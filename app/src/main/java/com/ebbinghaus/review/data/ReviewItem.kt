@@ -20,4 +20,7 @@ data class ReviewItem(
     // === 【新增】软删除支持 ===
     val isDeleted: Boolean = false,
     val deletedTime: Long? = null
-)
+) {
+    val isReviewable: Boolean
+        get() = !isFinished && nextReviewTime <= System.currentTimeMillis()
+}
