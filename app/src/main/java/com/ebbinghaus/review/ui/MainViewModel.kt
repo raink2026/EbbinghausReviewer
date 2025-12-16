@@ -81,18 +81,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Store last action for Undo
+    private var lastReviewItem: ReviewItem? = null
+    private var lastReviewActionItem: ReviewItem? = null // The item state BEFORE review
+
     fun markAsReviewed(item: ReviewItem, remembered: Boolean) {
         viewModelScope.launch {
+            lastReviewActionItem = item
             repository.markAsReviewed(item, remembered)
+            lastReviewItem = item // We track the item ID/object for context if needed, but lastReviewActionItem has the state.
 
             if (remembered) {
-                showToast(getApplication<Application>().getString(R.string.review_success))
+                // showToast(getApplication<Application>().getString(R.string.review_success))
             } else {
-                showToast(getApplication<Application>().getString(R.string.review_reset))
+                // showToast(getApplication<Application>().getString(R.string.review_reset))
             }
+            // Toast removed to avoid cluttering with Snackbar
 
             updateWidget()
             loadHeatMapData()
+        }
+    }
+
+    fun undoLastReview() {
+        viewModelScope.launch {
+            val previousState = lastReviewActionItem
+            val item = lastReviewItem
+            if (previousState != null && item != null && previousState.id == item.id) {
+                repository.undoLastReview(item, previousState)
+                lastReviewActionItem = null
+                lastReviewItem = null
+                showToast("Undo successful")
+                updateWidget()
+                loadHeatMapData()
+            }
         }
     }
 

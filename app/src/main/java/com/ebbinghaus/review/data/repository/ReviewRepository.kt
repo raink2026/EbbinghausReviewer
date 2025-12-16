@@ -72,7 +72,12 @@ class ReviewRepository(
                 reviewDao.update(item.copy(stage = nextStage, nextReviewTime = nextTime))
             }
         } else {
-            // Forgot: reset
+            // Forgot: reset to Stage 0
+            // Logic: Matches "Learning Queue" concept.
+            // Reset to Stage 0.
+            // Immediate Next Review: 10 mins (Interval[0]).
+            // Consequence: User waits 10m. Reviews (Stage 0). Remember -> Waits 10m. Reviews (Stage 1).
+
             nextStage = 0
             nextTime = EbbinghausManager.calculateNextReviewTime(0)
             reviewDao.update(item.copy(stage = 0, nextReviewTime = nextTime))
@@ -87,6 +92,13 @@ class ReviewRepository(
             stageAfter = if (remembered && EbbinghausManager.calculateNextReviewTime(item.stage) == -1L) 99 else nextStage
         )
         reviewDao.insertLog(log)
+    }
+
+    suspend fun undoLastReview(item: ReviewItem, previousState: ReviewItem) {
+        // Restore Item
+        reviewDao.update(previousState)
+        // Delete Last Log
+        reviewDao.deleteLastLog(item.id)
     }
 
     suspend fun moveToTrash(item: ReviewItem) {

@@ -69,6 +69,9 @@ interface ReviewDao {
     @Insert
     suspend fun insertLog(log: ReviewLog)
 
+    @Query("DELETE FROM review_logs WHERE id = (SELECT MAX(id) FROM review_logs WHERE itemId = :itemId)")
+    suspend fun deleteLastLog(itemId: Long)
+
     @Query("SELECT * FROM review_logs WHERE itemId = :itemId ORDER BY reviewTime ASC")
     suspend fun getLogsByItemId(itemId: Long): List<ReviewLog>
 }
