@@ -18,11 +18,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,7 +71,16 @@ fun ReviewScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.reviewing)) }) }
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.reviewing)) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
     ) { innerPadding ->
         if (item == null) {
             Box(modifier = Modifier.padding(innerPadding)) { Text(stringResource(R.string.loading)) }
@@ -147,14 +161,17 @@ fun ReviewScreen(
                 if (isAnswerVisible) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
                     ) {
                         // 放弃按钮
-                        Button(
+                        FilledTonalButton(
                             onClick = {
                                 navController.popBackStack()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            )
                         ) {
                             Text(stringResource(R.string.skip))
                         }
@@ -165,8 +182,7 @@ fun ReviewScreen(
                                 onClick = {
                                     viewModel.markAsReviewed(currentItem, remembered = true)
                                     navController.popBackStack()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                }
                             ) {
                                 Text(stringResource(R.string.done))
                             }
@@ -176,7 +192,7 @@ fun ReviewScreen(
                                 onClick = {
                                     navController.popBackStack()
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+                                enabled = false
                             ) {
                                 Text(stringResource(R.string.finished_today))
                             }

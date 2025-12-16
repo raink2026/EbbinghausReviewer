@@ -20,7 +20,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,7 +34,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.ebbinghaus.review.R
@@ -50,9 +55,12 @@ fun HomeScreen(
     dueItems: List<ReviewItem>,
     todayReviewedItems: List<ReviewItem>
 ) {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text(stringResource(R.string.review_list)) },
                 actions = {
                     // 回收站入口
@@ -63,10 +71,7 @@ fun HomeScreen(
                         Icon(Icons.Default.DateRange, contentDescription = "History")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                scrollBehavior = scrollBehavior
             )
         },
         floatingActionButton = {
@@ -75,69 +80,96 @@ fun HomeScreen(
             }
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
             // 1. 待复习列表
-            Text(
-                text = "${stringResource(R.string.to_review)} (${dueItems.size})",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(16.dp)
-            )
+            item {
+                Text(
+                    text = "${stringResource(R.string.to_review)} (${dueItems.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
 
             if (dueItems.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(stringResource(R.string.no_review_tasks), color = Color.Gray)
-                }
-            } else {
-                LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(dueItems, key = { it.id }) { item ->
-                        ReviewItemCardWrapper(
-                            item = item,
-                            viewModel = viewModel,
-                            onClick = { navController.navigate("review/${item.id}") }
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.List,
+                            contentDescription = null,
+                            modifier = Modifier.size(72.dp),
+                            tint = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.no_review_tasks),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge
                         )
                     }
+                }
+            } else {
+                items(dueItems, key = { it.id }) { item ->
+                    ReviewItemCardWrapper(
+                        item = item,
+                        viewModel = viewModel,
+                        onClick = { navController.navigate("review/${item.id}") }
+                    )
                 }
             }
 
-            Divider()
+            item {
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+            }
 
             // 2. 今日已完成列表
-            Text(
-                text = "${stringResource(R.string.studied_today)} (${todayReviewedItems.size})",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.padding(16.dp)
-            )
+            item {
+                Text(
+                    text = "${stringResource(R.string.studied_today)} (${todayReviewedItems.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
 
             if (todayReviewedItems.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    Text(stringResource(R.string.no_study_today), color = Color.Gray, modifier = Modifier.padding(top = 32.dp))
-                }
-            } else {
-                LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(todayReviewedItems, key = { it.id }) { item ->
-                        ReviewItemCardWrapper(
-                            item = item,
-                            viewModel = viewModel,
-                            onClick = { navController.navigate("review/${item.id}") }
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = stringResource(R.string.no_study_today),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
+            } else {
+                items(todayReviewedItems, key = { it.id }) { item ->
+                    ReviewItemCardWrapper(
+                        item = item,
+                        viewModel = viewModel,
+                        onClick = { navController.navigate("review/${item.id}") }
+                    )
+                }
+            }
+
+            // Add some bottom padding for the FAB
+            item {
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }
