@@ -39,9 +39,10 @@ fun EbbinghausReviewTheme(
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     fontScale: Float = 1.0f,
+    themeColor: Long? = null,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
+    val baseColorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -49,6 +50,12 @@ fun EbbinghausReviewTheme(
 
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
+    }
+
+    val colorScheme = if (themeColor != null) {
+        baseColorScheme.copy(background = androidx.compose.ui.graphics.Color(themeColor))
+    } else {
+        baseColorScheme
     }
 
     val scaledTypography = Typography.copy(

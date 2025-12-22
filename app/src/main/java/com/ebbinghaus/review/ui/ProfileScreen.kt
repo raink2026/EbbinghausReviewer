@@ -47,26 +47,34 @@ fun ProfileScreen(
     // 个性化状态 (暂存本地，实际可存 DataStore)
     var useDarkWallpaper by remember { mutableStateOf(true) }
 
-    Scaffold { innerPadding ->
+    Scaffold(
+        containerColor = Color.Transparent
+    ) { innerPadding ->
         // 使用 Box 实现背景图层叠
         Box(modifier = Modifier.fillMaxSize()) {
 
             // 1. 全局背景图 (支持切换)
             // 这里可以用 coil 加载网络图，或者本地资源
             // 示例使用纯色渐变模拟 "更好背景"
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = if (useDarkWallpaper)
-                                listOf(DarkWallpaperStart, DarkWallpaperEnd)
-                            else
-                                listOf(LightWallpaperStart, LightWallpaperEnd)
+            // If themeColor is set (global background), we hide this specific wallpaper or make it transparent
+            // For now, let's only show it if themeColor is NOT set, or let user decide?
+            // User requested "Global background", so we should probably not obscure it with this gradient unless user wants "Deep Starry Sky".
+            // Since "Deep Starry Sky" is a switch, let's check currentUser?.themeColor too.
+            if (currentUser?.themeColor == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = if (useDarkWallpaper)
+                                    listOf(DarkWallpaperStart, DarkWallpaperEnd)
+                                else
+                                    listOf(LightWallpaperStart, LightWallpaperEnd)
+                            )
                         )
-                    )
-            )
+                )
+            }
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

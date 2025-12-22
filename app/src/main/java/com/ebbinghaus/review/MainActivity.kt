@@ -69,7 +69,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val currentUser by mainViewModel.currentUser.collectAsState()
 
-            EbbinghausReviewTheme(fontScale = currentUser?.fontScale ?: 1.0f) {
+            EbbinghausReviewTheme(
+                fontScale = currentUser?.fontScale ?: 1.0f,
+                themeColor = currentUser?.themeColor
+            ) {
                 MainScreen(activity = this)
             }
         }

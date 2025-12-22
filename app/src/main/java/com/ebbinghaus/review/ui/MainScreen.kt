@@ -51,13 +51,8 @@ fun MainScreen(activity: MainActivity) {
     val viewModel: MainViewModel = viewModel()
     val dueItems by viewModel.dueItems.collectAsState()
     val todayReviewedItems by viewModel.todayReviewedItems.collectAsState()
-    val currentUser by viewModel.currentUser.collectAsState()
 
-    val backgroundColor = currentUser?.themeColor?.let { Color(it) } ?: MaterialTheme.colorScheme.background
-
-    Surface(color = backgroundColor, modifier = Modifier.fillMaxSize()) {
     Scaffold(
-        containerColor = Color.Transparent,
         bottomBar = {
             NavigationBar {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -126,6 +121,5 @@ fun MainScreen(activity: MainActivity) {
                 TrashScreen(navController, viewModel)
             }
         }
-    }
     }
 }
