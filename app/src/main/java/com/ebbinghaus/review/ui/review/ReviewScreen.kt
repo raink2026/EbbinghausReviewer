@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +40,7 @@ import com.ebbinghaus.review.R
 import com.ebbinghaus.review.data.ReviewItem
 import com.ebbinghaus.review.ui.MainViewModel
 import com.ebbinghaus.review.ui.components.FullImageDialog
+import com.ebbinghaus.review.ui.components.PhotoGrid
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,29 +104,14 @@ fun ReviewScreen(
                         ) {
                             item {
                                 if (!currentItem.imagePaths.isNullOrEmpty()) {
-                                    val paths = currentItem.imagePaths!!.split("|")
-                                    LazyRow(
-                                        modifier = Modifier.fillMaxWidth().height(250.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        items(paths) { path ->
-                                            // 只显示有效的图片路径
-                                            if (path.isNotBlank()) {
-                                                AsyncImage(
-                                                    model = Uri.parse(path),
-                                                    contentDescription = null,
-                                                    modifier = Modifier
-                                                        .fillMaxHeight()
-                                                        .clickable { fullScreenImageUrl = path },
-                                                    contentScale = ContentScale.Fit,
-                                                    onError = { 
-                                                        // 图片加载失败时忽略错误，不显示该图片
-                                                    }
-                                                )
-                                            }
-                                        }
+                                    val paths = currentItem.imagePaths!!.split("|").filter { it.isNotBlank() }
+                                    if (paths.isNotEmpty()) {
+                                        PhotoGrid(
+                                            imagePaths = paths,
+                                            onImageClick = { fullScreenImageUrl = it }
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
                                     }
-                                    Spacer(modifier = Modifier.height(16.dp))
                                 }
                             }
                             item {
