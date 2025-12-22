@@ -6,14 +6,18 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -47,8 +51,13 @@ fun MainScreen(activity: MainActivity) {
     val viewModel: MainViewModel = viewModel()
     val dueItems by viewModel.dueItems.collectAsState()
     val todayReviewedItems by viewModel.todayReviewedItems.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
 
+    val backgroundColor = currentUser?.themeColor?.let { Color(it) } ?: MaterialTheme.colorScheme.background
+
+    Surface(color = backgroundColor, modifier = Modifier.fillMaxSize()) {
     Scaffold(
+        containerColor = Color.Transparent,
         bottomBar = {
             NavigationBar {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -117,5 +126,6 @@ fun MainScreen(activity: MainActivity) {
                 TrashScreen(navController, viewModel)
             }
         }
+    }
     }
 }

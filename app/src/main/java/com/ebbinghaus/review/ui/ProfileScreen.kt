@@ -143,8 +143,20 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // 个性化设置项
-                        SettingSwitchItem(stringResource(R.string.deep_starry_sky_background), useDarkWallpaper) { useDarkWallpaper = it }
-                        SettingItem(stringResource(R.string.font_size), stringResource(R.string.standard))
+                        // SettingSwitchItem(stringResource(R.string.deep_starry_sky_background), useDarkWallpaper) { useDarkWallpaper = it }
+
+                        Text(stringResource(R.string.background_color), style = MaterialTheme.typography.bodyLarge)
+                        ColorPicker(
+                            selectedColor = currentUser?.themeColor,
+                            onColorSelected = { viewModel.updateThemeColor(it) }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(stringResource(R.string.font_size), style = MaterialTheme.typography.bodyLarge)
+                        FontScaleSlider(
+                            scale = currentUser?.fontScale ?: 1.0f,
+                            onScaleChanged = { viewModel.updateFontScale(it) }
+                        )
 
                         Spacer(modifier = Modifier.height(32.dp))
                         Text(stringResource(R.string.about), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -244,5 +256,56 @@ fun SettingItem(title: String, value: String) {
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge)
         Text(value, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+    }
+}
+
+@Composable
+fun ColorPicker(selectedColor: Long?, onColorSelected: (Long?) -> Unit) {
+    val colors = listOf(
+        null to Color.Transparent, // Default
+        0xFFF8F8F8 to Color(0xFFF8F8F8), // Light Gray
+        0xFFFFF8E1 to Color(0xFFFFF8E1), // Light Yellow
+        0xFFE0F7FA to Color(0xFFE0F7FA), // Light Cyan
+        0xFFF3E5F5 to Color(0xFFF3E5F5), // Light Purple
+        0xFFE8F5E9 to Color(0xFFE8F5E9), // Light Green
+        0xFFFFEBEE to Color(0xFFFFEBEE)  // Light Red
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        colors.forEach { (colorValue, color) ->
+            val isSelected = selectedColor == colorValue
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(color)
+                    .clickable { onColorSelected(colorValue) }
+                    .then(if (isSelected) Modifier.background(Color.Black.copy(alpha = 0.1f)) else Modifier)
+                    .then(if (colorValue == null) Modifier.background(Color.Gray) else Modifier) // Visual indicator for default
+            )
+        }
+    }
+}
+
+@Composable
+fun FontScaleSlider(scale: Float, onScaleChanged: (Float) -> Unit) {
+    Column {
+        Slider(
+            value = scale,
+            onValueChange = onScaleChanged,
+            valueRange = 0.8f..1.5f,
+            steps = 6
+        )
+        Text(
+            text = "Scale: ${String.format("%.1f", scale)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.Gray,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
     }
 }
