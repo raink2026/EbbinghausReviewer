@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import android.webkit.MimeTypeMap
 import com.ebbinghaus.review.data.AppDatabase
+import com.ebbinghaus.review.data.PlanItem
 import com.ebbinghaus.review.data.ReviewItem
 import com.ebbinghaus.review.utils.AppConstants
 import com.google.gson.Gson
@@ -30,8 +31,12 @@ object BackupManager {
 
     // 导出数据到用户选定的 URI (ZIP文件)
     suspend fun exportData(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        val dao = AppDatabase.getDatabase(context).reviewDao()
-        val allItems = dao.getAllItemsSync()
+        val database = AppDatabase.getDatabase(context)
+        val reviewDao = database.reviewDao()
+        val planDao = database.planDao()
+
+        val allReviewItems = reviewDao.getAllItemsSync()
+        val allPlanItems = planDao.getAllPlansSync()
 
         try {
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -64,7 +69,7 @@ object BackupManager {
                     //    but the JSON String generation + Byte Array caused the OOM.
                     //    So we iterate, copy images, create updated item object, add to a list (or better, yield it).
 
-                    val updatedItems = allItems.map { item ->
+                    val updatedItems = allReviewItems.map { item ->
                         val newImagePaths = mutableListOf<String>()
                         if (!item.imagePaths.isNullOrEmpty()) {
                             item.imagePaths.split("|").forEachIndexed { index, pathUriString ->
@@ -128,6 +133,15 @@ object BackupManager {
                     gson.toJson(updatedItems, object : TypeToken<List<ReviewItem>>() {}.type, writer)
                     writer.flush() // Flush but do not close writer, as it would close zipOut
                     zipOut.closeEntry()
+
+                    // 3. 写入 Plans 数据
+                    if (allPlanItems.isNotEmpty()) {
+                        zipOut.putNextEntry(ZipEntry(AppConstants.BACKUP_PLANS_FILENAME))
+                        val planWriter = OutputStreamWriter(zipOut)
+                        gson.toJson(allPlanItems, object : TypeToken<List<PlanItem>>() {}.type, planWriter)
+                        planWriter.flush()
+                        zipOut.closeEntry()
+                    }
                 }
             }
             true
@@ -146,7 +160,8 @@ object BackupManager {
                 importDir.mkdirs()
             }
 
-            var jsonString: String? = null
+            var reviewJsonString: String? = null
+            var plansJsonString: String? = null
             
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
                 ZipInputStream(BufferedInputStream(inputStream)).use { zipIn ->
@@ -155,7 +170,9 @@ object BackupManager {
                         val fileName = entry.name
                         if (!entry.isDirectory) {
                             if (fileName == AppConstants.BACKUP_JSON_FILENAME || fileName.endsWith(AppConstants.BACKUP_JSON_FILENAME)) {
-                                jsonString = InputStreamReader(zipIn).readText()
+                                reviewJsonString = InputStreamReader(zipIn).readText()
+                            } else if (fileName == AppConstants.BACKUP_PLANS_FILENAME || fileName.endsWith(AppConstants.BACKUP_PLANS_FILENAME)) {
+                                plansJsonString = InputStreamReader(zipIn).readText()
                             } else if (fileName.contains(AppConstants.BACKUP_IMAGES_DIR)) {
                                 // 解压图片，扁平化存入 imported_media
                                 val simpleFileName = File(fileName).name
@@ -172,9 +189,12 @@ object BackupManager {
                 }
             }
 
-            if (jsonString != null) {
+            val database = AppDatabase.getDatabase(context)
+            var success = false
+
+            if (reviewJsonString != null) {
                 val listType = object : TypeToken<List<ReviewItem>>() {}.type
-                val importedItems: List<ReviewItem> = gson.fromJson(jsonString, listType)
+                val importedItems: List<ReviewItem> = gson.fromJson(reviewJsonString, listType)
 
                 // 修正图片路径为本地绝对路径
                 val finalItems = importedItems.map { item ->
@@ -198,16 +218,30 @@ object BackupManager {
                     item.copy(imagePaths = if (fixedPaths.isNullOrBlank()) null else fixedPaths)
                 }
 
-                val dao = AppDatabase.getDatabase(context).reviewDao()
+                val dao = database.reviewDao()
                 
                 // 导入策略：全量覆盖
                 dao.deleteAll()
                 dao.insertAll(finalItems) 
-                
-                return@withContext true
+                success = true
             }
             
-            false
+            if (plansJsonString != null) {
+                try {
+                    val listType = object : TypeToken<List<PlanItem>>() {}.type
+                    val importedPlans: List<PlanItem> = gson.fromJson(plansJsonString, listType)
+
+                    val planDao = database.planDao()
+                    planDao.deleteAll()
+                    planDao.insertAll(importedPlans)
+                    success = true // 如果只有 plans 也可以算成功
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to import plans", e)
+                    // Don't fail the whole import if plans fail, but log it
+                }
+            }
+
+            return@withContext success
         } catch (e: Exception) {
             Log.e(TAG, "Import failed", e)
             false

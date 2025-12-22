@@ -17,6 +17,15 @@ interface PlanDao {
     @Query("SELECT date, COUNT(*) as count FROM plan_items WHERE status = 'DONE' AND date LIKE :monthPrefix || '%' GROUP BY date")
     suspend fun getMonthlyHeatMap(monthPrefix: String): List<DailyStat>
 
+    @Query("SELECT * FROM plan_items")
+    suspend fun getAllPlansSync(): List<PlanItem>
+
+    @Query("DELETE FROM plan_items")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(items: List<PlanItem>)
+
     @Insert
     suspend fun insert(item: PlanItem)
 
