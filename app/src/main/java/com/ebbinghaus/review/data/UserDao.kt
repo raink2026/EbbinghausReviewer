@@ -14,7 +14,7 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE isCurrent = 1 LIMIT 1")
     suspend fun getCurrentUserSync(): User?
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: User)
 
     @Query("UPDATE users SET isCurrent = 0")

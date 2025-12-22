@@ -33,6 +33,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Ideally these should be injected via DI (Hilt/Koin), but for now we construct them here.
     private val database = AppDatabase.getDatabase(application)
     private val repository = ReviewRepository(database.reviewDao(), ImageRepository(application))
+    private val userDao = database.userDao()
+
+    val currentUser = userDao.getCurrentUser()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val dueItems: StateFlow<List<ReviewItem>> = repository.getDueItems(System.currentTimeMillis())
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

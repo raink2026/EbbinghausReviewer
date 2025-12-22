@@ -28,11 +28,12 @@ import com.ebbinghaus.review.MainActivity
 import com.ebbinghaus.review.ui.add.AddItemScreen
 import com.ebbinghaus.review.ui.home.HomeScreen
 import com.ebbinghaus.review.ui.review.ReviewScreen
+import com.ebbinghaus.review.ui.theme.AppIcons
 
-sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Home : Screen("home", "复习", Icons.Filled.Home)
-    object Plan : Screen("plan", "计划", Icons.Filled.DateRange)
-    object Profile : Screen("profile", "我的", Icons.Filled.Person)
+sealed class Screen(val route: String, val label: String) {
+    object Home : Screen("home", "复习")
+    object Plan : Screen("plan", "计划")
+    object Profile : Screen("profile", "我的")
 }
 
 val items = listOf(
@@ -47,6 +48,7 @@ fun MainScreen(activity: MainActivity) {
     val viewModel: MainViewModel = viewModel()
     val dueItems by viewModel.dueItems.collectAsState()
     val todayReviewedItems by viewModel.todayReviewedItems.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -54,9 +56,25 @@ fun MainScreen(activity: MainActivity) {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
                 items.forEach { screen ->
+                    val iconVector = if (currentUser != null) {
+                        when (screen) {
+                            Screen.Home -> AppIcons.getIcon(currentUser!!.homeIcon, Icons.Filled.Home)
+                            Screen.Plan -> AppIcons.getIcon(currentUser!!.planIcon, Icons.Filled.DateRange)
+                            Screen.Profile -> AppIcons.getIcon(currentUser!!.profileIcon, Icons.Filled.Person)
+                        }
+                    } else {
+                        when (screen) {
+                            Screen.Home -> Icons.Filled.Home
+                            Screen.Plan -> Icons.Filled.DateRange
+                            Screen.Profile -> Icons.Filled.Person
+                        }
+                    }
+
+                    val showLabel = currentUser?.showMenuLabels ?: true
+
                     NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = null) },
-                        label = { Text(screen.label) },
+                        icon = { Icon(iconVector, contentDescription = null) },
+                        label = if (showLabel) { { Text(screen.label) } } else null,
                         selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                         onClick = {
                             navController.navigate(screen.route) {
