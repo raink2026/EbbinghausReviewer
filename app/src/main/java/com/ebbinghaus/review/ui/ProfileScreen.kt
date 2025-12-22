@@ -269,6 +269,8 @@ fun SettingItem(title: String, value: String) {
 
 @Composable
 fun ColorPicker(selectedColor: Long?, onColorSelected: (Long?) -> Unit) {
+    var showCustomColorDialog by remember { mutableStateOf(false) }
+
     val colors = listOf(
         null to Color.Transparent, // Default
         0xFFF8F8F8 to Color(0xFFF8F8F8), // Light Gray
@@ -279,25 +281,132 @@ fun ColorPicker(selectedColor: Long?, onColorSelected: (Long?) -> Unit) {
         0xFFFFEBEE to Color(0xFFFFEBEE)  // Light Red
     )
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        colors.forEach { (colorValue, color) ->
-            val isSelected = selectedColor == colorValue
+    // Check if selected color is one of the presets
+    val isPreset = colors.any { it.first == selectedColor }
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            colors.forEach { (colorValue, color) ->
+                val isSelected = selectedColor == colorValue
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .clickable { onColorSelected(colorValue) }
+                        .then(if (isSelected) Modifier.background(Color.Black.copy(alpha = 0.1f)) else Modifier)
+                        .then(if (colorValue == null) Modifier.background(Color.Gray) else Modifier) // Visual indicator for default
+                )
+            }
+
+            // Custom Color Button
             Box(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(color)
-                    .clickable { onColorSelected(colorValue) }
-                    .then(if (isSelected) Modifier.background(Color.Black.copy(alpha = 0.1f)) else Modifier)
-                    .then(if (colorValue == null) Modifier.background(Color.Gray) else Modifier) // Visual indicator for default
-            )
+                    .background(Color.LightGray)
+                    .clickable { showCustomColorDialog = true },
+                contentAlignment = Alignment.Center
+            ) {
+                 Icon(Icons.Default.Add, contentDescription = "Custom Color", tint = Color.White)
+            }
+        }
+
+        // Show selected custom color if it's not a preset
+        if (selectedColor != null && !isPreset) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                Text(stringResource(R.string.custom_color) + ": ", style = MaterialTheme.typography.bodyMedium)
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color(selectedColor))
+                )
+            }
         }
     }
+
+    if (showCustomColorDialog) {
+        CustomColorDialog(
+            initialColor = selectedColor,
+            onDismiss = { showCustomColorDialog = false },
+            onConfirm = {
+                onColorSelected(it)
+                showCustomColorDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun CustomColorDialog(initialColor: Long?, onDismiss: () -> Unit, onConfirm: (Long) -> Unit) {
+    val initialColorObj = initialColor?.let { Color(it) } ?: Color.White
+
+    // RGB state (0-255)
+    var red by remember { mutableStateOf((initialColorObj.red * 255).toInt().toString()) }
+    var green by remember { mutableStateOf((initialColorObj.green * 255).toInt().toString()) }
+    var blue by remember { mutableStateOf((initialColorObj.blue * 255).toInt().toString()) }
+
+    fun getColor(): Long {
+        val r = red.toIntOrNull()?.coerceIn(0, 255) ?: 255
+        val g = green.toIntOrNull()?.coerceIn(0, 255) ?: 255
+        val b = blue.toIntOrNull()?.coerceIn(0, 255) ?: 255
+        // Alpha is always 255 (0xFF)
+        return (0xFF.toLong() shl 24) or (r.toLong() shl 16) or (g.toLong() shl 8) or b.toLong()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.custom_color)) },
+        text = {
+            Column {
+                // Preview
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(getColor()))
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // RGB Inputs
+                OutlinedTextField(
+                    value = red,
+                    onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 3) red = it },
+                    label = { Text(stringResource(R.string.red)) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = green,
+                    onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 3) green = it },
+                    label = { Text(stringResource(R.string.green)) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = blue,
+                    onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 3) blue = it },
+                    label = { Text(stringResource(R.string.blue)) },
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(getColor()) }) {
+                Text(stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable
