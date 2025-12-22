@@ -146,6 +146,14 @@ fun ProfileScreen(
                         SettingSwitchItem(stringResource(R.string.deep_starry_sky_background), useDarkWallpaper) { useDarkWallpaper = it }
                         SettingItem(stringResource(R.string.font_size), stringResource(R.string.standard))
 
+                        // Menu Customization
+                        MenuCustomizationSection(
+                            currentUser = currentUser,
+                            onUpdateSettings = { showLabels, home, plan, profile ->
+                                viewModel.updateMenuSettings(showLabels, home, plan, profile)
+                            }
+                        )
+
                         Spacer(modifier = Modifier.height(32.dp))
                         Text(stringResource(R.string.about), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(16.dp))
@@ -245,4 +253,126 @@ fun SettingItem(title: String, value: String) {
         Text(title, style = MaterialTheme.typography.bodyLarge)
         Text(value, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
     }
+}
+
+@Composable
+fun MenuCustomizationSection(
+    currentUser: User?,
+    onUpdateSettings: (Boolean?, String?, String?, String?) -> Unit
+) {
+    var showIconPicker by remember { mutableStateOf<String?>(null) } // "home", "plan", "profile" or null
+
+    if (currentUser != null) {
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Menu Customization", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        SettingSwitchItem(
+            title = "Show Menu Labels",
+            checked = currentUser.showMenuLabels,
+            onCheckedChange = { onUpdateSettings(it, null, null, null) }
+        )
+
+        MenuItemSetting(
+            label = "Home Icon",
+            iconName = currentUser.homeIcon,
+            onClick = { showIconPicker = "home" }
+        )
+        MenuItemSetting(
+            label = "Plan Icon",
+            iconName = currentUser.planIcon,
+            onClick = { showIconPicker = "plan" }
+        )
+        MenuItemSetting(
+            label = "Profile Icon",
+            iconName = currentUser.profileIcon,
+            onClick = { showIconPicker = "profile" }
+        )
+
+        if (showIconPicker != null) {
+            IconPickerDialog(
+                currentIconName = when (showIconPicker) {
+                    "home" -> currentUser.homeIcon
+                    "plan" -> currentUser.planIcon
+                    "profile" -> currentUser.profileIcon
+                    else -> ""
+                },
+                onIconSelected = { newIcon ->
+                    when (showIconPicker) {
+                        "home" -> onUpdateSettings(null, newIcon, null, null)
+                        "plan" -> onUpdateSettings(null, null, newIcon, null)
+                        "profile" -> onUpdateSettings(null, null, null, newIcon)
+                    }
+                    showIconPicker = null
+                },
+                onDismiss = { showIconPicker = null }
+            )
+        }
+    }
+}
+
+@Composable
+fun MenuItemSetting(label: String, iconName: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = AppIcons.getIcon(iconName, Icons.Default.Home),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+@Composable
+fun IconPickerDialog(
+    currentIconName: String,
+    onIconSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select Icon") },
+        text = {
+            LazyColumn(
+                modifier = Modifier.height(300.dp), // Limit height
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Group by style/type could be nice, but simple list for now
+                val icons = AppIcons.AvailableIcons.toList()
+                items(icons.size) { index ->
+                    val (name, icon) = icons[index]
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onIconSelected(name) }
+                            .padding(8.dp)
+                            .background(
+                                if (name == currentIconName) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(name)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }

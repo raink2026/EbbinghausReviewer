@@ -45,4 +45,18 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             // 目前先做 UI 切换效果
         }
     }
+
+    // 更新当前用户的菜单设置
+    fun updateMenuSettings(showLabels: Boolean? = null, homeIcon: String? = null, planIcon: String? = null, profileIcon: String? = null) {
+        val current = currentUser.value ?: return
+        val updatedUser = current.copy(
+            showMenuLabels = showLabels ?: current.showMenuLabels,
+            homeIcon = homeIcon ?: current.homeIcon,
+            planIcon = planIcon ?: current.planIcon,
+            profileIcon = profileIcon ?: current.profileIcon
+        )
+        viewModelScope.launch {
+            userDao.insertUser(updatedUser) // insertUser uses OnConflictStrategy.REPLACE (implied if not specified? need to check UserDao)
+        }
+    }
 }
