@@ -45,4 +45,20 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             // 目前先做 UI 切换效果
         }
     }
+
+    fun updateThemeColor(color: Long?) {
+        viewModelScope.launch {
+            currentUser.value?.let { user ->
+                userDao.updateUser(user.copy(themeColor = color))
+            }
+        }
+    }
+
+    fun updateFontScale(scale: Float) {
+        viewModelScope.launch {
+            currentUser.value?.let { user ->
+                userDao.updateUser(user.copy(fontScale = scale))
+            }
+        }
+    }
 }
