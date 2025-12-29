@@ -1,5 +1,6 @@
 package com.ebbinghaus.review.ui
 
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -8,6 +9,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -32,11 +35,12 @@ import com.ebbinghaus.review.MainActivity
 import com.ebbinghaus.review.ui.add.AddItemScreen
 import com.ebbinghaus.review.ui.home.HomeScreen
 import com.ebbinghaus.review.ui.review.ReviewScreen
+import com.ebbinghaus.review.ui.theme.AppIcons
 
-sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Home : Screen("home", "复习", Icons.Filled.Home)
-    object Plan : Screen("plan", "计划", Icons.Filled.DateRange)
-    object Profile : Screen("profile", "我的", Icons.Filled.Person)
+sealed class Screen(val route: String, val label: String) {
+    object Home : Screen("home", "复习")
+    object Plan : Screen("plan", "计划")
+    object Profile : Screen("profile", "我的")
 }
 
 val items = listOf(
@@ -51,16 +55,38 @@ fun MainScreen(activity: MainActivity) {
     val viewModel: MainViewModel = viewModel()
     val dueItems by viewModel.dueItems.collectAsState()
     val todayReviewedItems by viewModel.todayReviewedItems.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            val showLabels = currentUser?.showMenuLabels ?: true
+            val navBarHeight = if (showLabels) 80.dp else 64.dp
+
+            NavigationBar(
+                modifier = Modifier.height(navBarHeight)
+            ) {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
                 items.forEach { screen ->
+                    val iconVector = if (currentUser != null) {
+                        when (screen) {
+                            Screen.Home -> AppIcons.getIcon(currentUser!!.homeIcon, Icons.Filled.Home)
+                            Screen.Plan -> AppIcons.getIcon(currentUser!!.planIcon, Icons.Filled.DateRange)
+                            Screen.Profile -> AppIcons.getIcon(currentUser!!.profileIcon, Icons.Filled.Person)
+                        }
+                    } else {
+                        when (screen) {
+                            Screen.Home -> Icons.Filled.Home
+                            Screen.Plan -> Icons.Filled.DateRange
+                            Screen.Profile -> Icons.Filled.Person
+                        }
+                    }
+
+                    val showLabel = currentUser?.showMenuLabels ?: true
+
                     NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = null) },
-                        label = { Text(screen.label) },
+                        icon = { Icon(iconVector, contentDescription = null) },
+                        label = if (showLabel) { { Text(screen.label) } } else null,
                         selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                         onClick = {
                             navController.navigate(screen.route) {

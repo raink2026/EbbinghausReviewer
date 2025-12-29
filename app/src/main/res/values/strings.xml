@@ -64,4 +64,13 @@
     <string name="restored_from_trash">已恢复到复习列表</string>
     <string name="deleted_permanently">已彻底删除，无法找回</string>
     <string name="snoozed">已推迟 10 分钟</string>
+
+    <!-- Menu Customization -->
+    <string name="menu_settings">菜单设置</string>
+    <string name="show_menu_labels">显示文字描述</string>
+    <string name="customize_icons">自定义图标样式</string>
+    <string name="icon_home">复习图标</string>
+    <string name="icon_plan">计划图标</string>
+    <string name="icon_profile">我的图标</string>
+    <string name="select_icon">选择图标</string>
 </resources>
