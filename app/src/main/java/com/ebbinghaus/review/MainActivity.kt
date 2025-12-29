@@ -8,13 +8,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import com.ebbinghaus.review.ui.MainScreen
+import com.ebbinghaus.review.ui.MainViewModel
 import com.ebbinghaus.review.ui.theme.EbbinghausReviewTheme
+import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private val mainViewModel: MainViewModel by viewModels()
 
     private val exportLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
@@ -62,17 +67,14 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            AppMaterialTheme {
+            val currentUser by mainViewModel.currentUser.collectAsState()
+
+            EbbinghausReviewTheme(
+                fontScale = currentUser?.fontScale ?: 1.0f,
+                themeColor = currentUser?.themeColor
+            ) {
                 MainScreen(activity = this)
             }
         }
     }
-}
-
-@Composable
-fun AppMaterialTheme(content: @Composable () -> Unit) {
-    androidx.compose.material3.MaterialTheme(
-        colorScheme = androidx.compose.material3.dynamicLightColorScheme(LocalContext.current),
-        content = content
-    )
 }

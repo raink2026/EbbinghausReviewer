@@ -8,8 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.ebbinghaus.review.utils.AppConstants
 
-// 【新增】User::class
-@Database(entities = [ReviewItem::class, ReviewLog::class, PlanItem::class, User::class], version = 4, exportSchema = true)
+@Database(entities = [ReviewItem::class, ReviewLog::class, PlanItem::class, User::class], version = 5, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun reviewDao(): ReviewDao
     abstract fun planDao(): PlanDao
@@ -17,6 +16,13 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE users ADD COLUMN themeColor INTEGER")
+                database.execSQL("ALTER TABLE users ADD COLUMN fontScale REAL NOT NULL DEFAULT 1.0")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE users ADD COLUMN showMenuLabels INTEGER NOT NULL DEFAULT 1")
                 database.execSQL("ALTER TABLE users ADD COLUMN homeIcon TEXT NOT NULL DEFAULT 'Home'")
@@ -35,8 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     AppConstants.DB_NAME
                 )
-                .addMigrations(MIGRATION_3_4)
-                // Removed fallbackToDestructiveMigration for data safety
+                .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
                 .build().also { Instance = it }
             }
         }

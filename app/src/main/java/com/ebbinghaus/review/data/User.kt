@@ -12,5 +12,7 @@ data class User(
     val showMenuLabels: Boolean = true,
     val homeIcon: String = "Home",
     val planIcon: String = "DateRange",
-    val profileIcon: String = "Person"
+    val profileIcon: String = "Person",
+    val themeColor: Long? = null, // 全局背景色 (ARGB)
+    val fontScale: Float = 1.0f // 全局字体缩放比例
 )

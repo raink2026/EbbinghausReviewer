@@ -36,7 +36,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val userDao = database.userDao()
 
     val currentUser = userDao.getCurrentUser()
+<<<<<<< HEAD
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+=======
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+>>>>>>> ce9a4e258236ce94ac915dd3baedfc88fe971f55
 
     val dueItems: StateFlow<List<ReviewItem>> = repository.getDueItems(System.currentTimeMillis())
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

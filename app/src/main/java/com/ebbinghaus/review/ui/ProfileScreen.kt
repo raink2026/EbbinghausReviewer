@@ -47,26 +47,27 @@ fun ProfileScreen(
     // 个性化状态 (暂存本地，实际可存 DataStore)
     var useDarkWallpaper by remember { mutableStateOf(true) }
 
-    Scaffold { innerPadding ->
+    Scaffold(
+        containerColor = Color.Transparent
+    ) { innerPadding ->
         // 使用 Box 实现背景图层叠
         Box(modifier = Modifier.fillMaxSize()) {
 
-            // 1. 全局背景图 (支持切换)
-            // 这里可以用 coil 加载网络图，或者本地资源
-            // 示例使用纯色渐变模拟 "更好背景"
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = if (useDarkWallpaper)
-                                listOf(DarkWallpaperStart, DarkWallpaperEnd)
-                            else
-                                listOf(LightWallpaperStart, LightWallpaperEnd)
+            if (currentUser?.themeColor == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = if (useDarkWallpaper)
+                                    listOf(DarkWallpaperStart, DarkWallpaperEnd)
+                                else
+                                    listOf(LightWallpaperStart, LightWallpaperEnd)
+                            )
                         )
-                    )
-            )
+                )
+            }
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -142,9 +143,18 @@ fun ProfileScreen(
                         Text(stringResource(R.string.personalization), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // 个性化设置项
-                        SettingSwitchItem(stringResource(R.string.deep_starry_sky_background), useDarkWallpaper) { useDarkWallpaper = it }
-                        SettingItem(stringResource(R.string.font_size), stringResource(R.string.standard))
+                        Text(stringResource(R.string.background_color), style = MaterialTheme.typography.bodyLarge)
+                        ColorPicker(
+                            selectedColor = currentUser?.themeColor,
+                            onColorSelected = { viewModel.updateThemeColor(it) }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(stringResource(R.string.font_size), style = MaterialTheme.typography.bodyLarge)
+                        FontScaleSlider(
+                            scale = currentUser?.fontScale ?: 1.0f,
+                            onScaleChanged = { viewModel.updateFontScale(it) }
+                        )
 
                         // Menu Customization
                         MenuCustomizationSection(
@@ -454,4 +464,164 @@ fun IconPickerDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
+}
+
+@Composable
+fun ColorPicker(selectedColor: Long?, onColorSelected: (Long?) -> Unit) {
+    var showCustomColorDialog by remember { mutableStateOf(false) }
+
+    val colors = listOf(
+        null to Color.Transparent, // Default
+        0xFFF8F8F8 to Color(0xFFF8F8F8), // Light Gray
+        0xFFFFF8E1 to Color(0xFFFFF8E1), // Light Yellow
+        0xFFE0F7FA to Color(0xFFE0F7FA), // Light Cyan
+        0xFFF3E5F5 to Color(0xFFF3E5F5), // Light Purple
+        0xFFE8F5E9 to Color(0xFFE8F5E9), // Light Green
+        0xFFFFEBEE to Color(0xFFFFEBEE)  // Light Red
+    )
+
+    // Check if selected color is one of the presets
+    val isPreset = colors.any { it.first == selectedColor }
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            colors.forEach { (colorValue, color) ->
+                val isSelected = selectedColor == colorValue
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .clickable { onColorSelected(colorValue) }
+                        .then(if (isSelected) Modifier.background(Color.Black.copy(alpha = 0.1f)) else Modifier)
+                        .then(if (colorValue == null) Modifier.background(Color.Gray) else Modifier) // Visual indicator for default
+                )
+            }
+
+            // Custom Color Button
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.LightGray)
+                    .clickable { showCustomColorDialog = true },
+                contentAlignment = Alignment.Center
+            ) {
+                 Icon(Icons.Default.Add, contentDescription = "Custom Color", tint = Color.White)
+            }
+        }
+
+        // Show selected custom color if it's not a preset
+        if (selectedColor != null && !isPreset) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                Text(stringResource(R.string.custom_color) + ": ", style = MaterialTheme.typography.bodyMedium)
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color(selectedColor))
+                )
+            }
+        }
+    }
+
+    if (showCustomColorDialog) {
+        CustomColorDialog(
+            initialColor = selectedColor,
+            onDismiss = { showCustomColorDialog = false },
+            onConfirm = {
+                onColorSelected(it)
+                showCustomColorDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun CustomColorDialog(initialColor: Long?, onDismiss: () -> Unit, onConfirm: (Long) -> Unit) {
+    val initialColorObj = initialColor?.let { Color(it) } ?: Color.White
+
+    // RGB state (0-255)
+    var red by remember { mutableStateOf((initialColorObj.red * 255).toInt().toString()) }
+    var green by remember { mutableStateOf((initialColorObj.green * 255).toInt().toString()) }
+    var blue by remember { mutableStateOf((initialColorObj.blue * 255).toInt().toString()) }
+
+    fun getColor(): Long {
+        val r = red.toIntOrNull()?.coerceIn(0, 255) ?: 255
+        val g = green.toIntOrNull()?.coerceIn(0, 255) ?: 255
+        val b = blue.toIntOrNull()?.coerceIn(0, 255) ?: 255
+        // Alpha is always 255 (0xFF)
+        return (0xFF.toLong() shl 24) or (r.toLong() shl 16) or (g.toLong() shl 8) or b.toLong()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.custom_color)) },
+        text = {
+            Column {
+                // Preview
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(getColor()))
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // RGB Inputs
+                OutlinedTextField(
+                    value = red,
+                    onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 3) red = it },
+                    label = { Text(stringResource(R.string.red)) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = green,
+                    onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 3) green = it },
+                    label = { Text(stringResource(R.string.green)) },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = blue,
+                    onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 3) blue = it },
+                    label = { Text(stringResource(R.string.blue)) },
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(getColor()) }) {
+                Text(stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
+fun FontScaleSlider(scale: Float, onScaleChanged: (Float) -> Unit) {
+    Column {
+        Slider(
+            value = scale,
+            onValueChange = onScaleChanged,
+            valueRange = 0.8f..1.5f,
+            steps = 6
+        )
+        Text(
+            text = "Scale: ${String.format("%.1f", scale)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.Gray,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+    }
 }

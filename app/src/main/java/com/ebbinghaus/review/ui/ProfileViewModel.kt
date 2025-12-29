@@ -56,7 +56,23 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             profileIcon = profileIcon ?: current.profileIcon
         )
         viewModelScope.launch {
-            userDao.insertUser(updatedUser) // insertUser uses OnConflictStrategy.REPLACE (implied if not specified? need to check UserDao)
+            userDao.insertUser(updatedUser)
+        }
+    }
+
+    fun updateThemeColor(color: Long?) {
+        viewModelScope.launch {
+            currentUser.value?.let { user ->
+                userDao.updateUser(user.copy(themeColor = color))
+            }
+        }
+    }
+
+    fun updateFontScale(scale: Float) {
+        viewModelScope.launch {
+            currentUser.value?.let { user ->
+                userDao.updateUser(user.copy(fontScale = scale))
+            }
         }
     }
 }
