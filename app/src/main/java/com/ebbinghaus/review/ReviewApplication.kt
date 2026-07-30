@@ -4,14 +4,22 @@ import android.app.Application
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.ebbinghaus.review.data.sync.SyncServices
+import com.ebbinghaus.review.workers.SyncScheduler
 import com.ebbinghaus.review.workers.ReviewWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 class ReviewApplication : Application() {
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
         setupWorker()
+        scheduleProfileSyncs()
     }
 
     private fun setupWorker() {
@@ -28,5 +36,19 @@ class ReviewApplication : Application() {
             ExistingPeriodicWorkPolicy.KEEP,
             reviewWorkRequest
         )
+    }
+
+    private fun scheduleProfileSyncs() {
+        applicationScope.launch {
+            SyncServices.get(this@ReviewApplication).database.remoteRepositoryDao()
+                .getAutoSyncRepositories()
+                .forEach { repository ->
+                    SyncScheduler.enqueue(
+                        this@ReviewApplication,
+                        repository.profileId,
+                        repository.wifiOnly
+                    )
+                }
+        }
     }
 }

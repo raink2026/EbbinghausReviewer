@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ebbinghaus-review.local/schema/v1/event.schema.json",
+  "title": "Ebbinghaus causal event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "event_id", "stream_id", "parent_event_ids", "event_type", "occurred_at", "source_device_id", "algorithm", "payload"],
+  "properties": {
+    "schema": {"const": "ebbinghaus-event/v1"},
+    "event_id": {"type": "string", "format": "uuid"},
+    "stream_id": {"type": "string", "pattern": "^(review|lifecycle):[0-9a-f-]{36}$"},
+    "parent_event_ids": {"type": "array", "items": {"type": "string", "format": "uuid"}, "uniqueItems": true},
+    "event_type": {"enum": ["review", "review_merge", "delete", "restore", "lifecycle_resolve"]},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "source_device_id": {"type": "string", "format": "uuid"},
+    "algorithm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"const": "ebbinghaus-8-stage"},
+        "version": {"const": 1}
+      }
+    },
+    "payload": {"type": "object"}
+  }
+}

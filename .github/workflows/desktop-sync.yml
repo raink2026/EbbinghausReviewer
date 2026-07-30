@@ -1,0 +1,62 @@
+name: Desktop sync tooling
+
+on:
+  push:
+    paths:
+      - "scripts/**"
+      - "tools/**"
+      - "repository-format/**"
+      - ".github/workflows/desktop-sync.yml"
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "tools/**"
+      - "repository-format/**"
+      - ".github/workflows/desktop-sync.yml"
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install desktop tooling dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes bats shellcheck jq
+          python3 -m pip install --user -r tools/requirements-desktop.txt
+          mkdir -p "$HOME/.local/bin"
+          curl --fail --location --silent --show-error \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
+            --output "$HOME/.local/bin/yq"
+          chmod +x "$HOME/.local/bin/yq"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Run ShellCheck and Bats
+        run: scripts/test-desktop-sync.sh
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install desktop tooling dependencies
+        run: |
+          brew install bats-core shellcheck jq yq
+          python3 -m pip install --user -r tools/requirements-desktop.txt
+      - name: Run ShellCheck and Bats
+        run: scripts/test-desktop-sync.sh
+
+  windows-git-bash:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install desktop tooling dependencies
+        shell: pwsh
+        run: |
+          choco install --yes shellcheck jq yq
+          git clone --depth 1 --branch v1.11.1 https://github.com/bats-core/bats-core.git "$env:RUNNER_TEMP\bats-core"
+          "${env:RUNNER_TEMP}\bats-core\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          py -3 -m pip install --user -r tools/requirements-desktop.txt
+      - name: Run ShellCheck and Bats from Git Bash
+        run: scripts/test-desktop-sync.sh

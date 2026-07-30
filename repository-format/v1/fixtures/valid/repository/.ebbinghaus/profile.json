@@ -1,0 +1,11 @@
+{
+  "schema": "ebbinghaus-profile/v1",
+  "repository_id": "018f0000-0000-7000-8000-000000000001",
+  "profile_id": "018f0000-0000-7000-8000-000000000002",
+  "timezone": "Asia/Shanghai",
+  "review_algorithm": {
+    "id": "ebbinghaus-8-stage",
+    "version": 1,
+    "parameters": {"interval_days": [1, 2, 4, 7, 15, 30, 60, 120]}
+  }
+}

@@ -12,26 +12,35 @@ import com.ebbinghaus.review.data.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import com.ebbinghaus.review.data.ReviewDao
 
 class ReviewWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        val dao = AppDatabase.getDatabase(context).reviewDao()
+        val database = AppDatabase.getDatabase(context)
         // 遍历所有 Widget 实例进行更新
         for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId, dao)
+            updateAppWidget(context, appWidgetManager, appWidgetId, database)
         }
     }
 }
 
 // 核心更新逻辑
-fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, dao: ReviewDao) {
+fun updateAppWidget(
+    context: Context,
+    appWidgetManager: AppWidgetManager,
+    appWidgetId: Int,
+    database: AppDatabase
+) {
     // 1. 获取 DB 数据 (Widget 必须在协程或后台线程获取数据)
     CoroutineScope(Dispatchers.IO).launch {
         val dueCount = try {
             // 使用 Step 5 中为 Worker 添加的同步查询方法
-            dao.getDueCountSync(System.currentTimeMillis())
+            val now = System.currentTimeMillis()
+            val legacy = database.reviewDao().getDueCountSync(now)
+            val profile = database.profileDao().getCurrentProfile()
+            legacy + (profile?.let {
+                database.noteProjectionDao().getDueCount(it.profileId, now)
+            } ?: 0)
         } catch (e: Exception) {
             0
         }

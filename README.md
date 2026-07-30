@@ -5,6 +5,10 @@
 
 本项目采用 2025 年主流 Android 技术栈（Kotlin + Compose + Room + MVVM）构建，旨在提供一个科学、高效、体验优雅的复习管理方案。
 
+## Gitee 多端同步
+
+每个档案可绑定一个 Gitee 私有仓库。笔记以不可变 Markdown revision 保存，图片位于当天 `YYYY-MM-DD/assets/`，App、其他 Android 设备和电脑端 Git/Typora 通过追加文件进行同步。配置、切换、冲突、迁移、回滚和排障见 [App、Gitee 与 Typora 同步操作指南](docs/app-gitee-sync-workflow.md)；电脑端脚本细节见 [Desktop Git and Typora Workflow](docs/desktop-sync-workflow.md)。
+
 ---
 
 ## 📦 模块功能详解 (Features)
@@ -33,7 +37,7 @@
 ### 3. 首页看板 (Dashboard)
 *   **分栏展示**：
     *   **待复习**：实时展示截止当前需要复习的任务。
-    *   **今日已学**：展示今天新创建的任务 + 今天已完成复习的任务，给予正向反馈。
+*   **今日已学**：同步档案按实际 review event 展示今天已完成复习的任务，不把仅创建但尚未复习的笔记计为已完成。
 *   **交互优化**：
     *   **左滑删除**：支持侧滑删除手势，配有二次确认弹窗，防止误触。
 

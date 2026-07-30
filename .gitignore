@@ -16,6 +16,10 @@ local.properties
 .idea/
 app/build/
 
+# Python tooling caches
+__pycache__/
+*.py[cod]
+
 # Build artifacts
 *.apk
 *.aab

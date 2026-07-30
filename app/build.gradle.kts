@@ -4,6 +4,18 @@ plugins {
     alias(libs.plugins.ksp) // 启用 KSP 插件
 }
 
+val repositoryControlAssets = layout.buildDirectory.dir("generated/repositoryControlAssets")
+val generateRepositoryControlAssets by tasks.registering(org.gradle.api.tasks.Sync::class) {
+    from(rootProject.file("repository-format/v1/schemas")) {
+        include("*.schema.json")
+        into("repository-control/ebbinghaus")
+    }
+    from(rootProject.file("scripts/review-sync.sh")) {
+        into("repository-control/scripts")
+    }
+    into(repositoryControlAssets)
+}
+
 android {
     namespace = "com.ebbinghaus.review"
     compileSdk = 34
@@ -40,6 +52,7 @@ android {
     buildFeatures {
         compose = true
     }
+    sourceSets.getByName("main").assets.srcDir(repositoryControlAssets)
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
@@ -48,6 +61,18 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    testOptions {
+        unitTests.all {
+            it.systemProperty(
+                "robolectric.dependency.repo.url",
+                "https://repo.maven.apache.org/maven2"
+            )
+        }
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(generateRepositoryControlAssets)
 }
 
 dependencies {
@@ -59,12 +84,14 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.compose.material)
 
     // === 核心业务依赖 ===
     // Room 数据库 (≈ MyBatis + SQLite)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler) // 注解处理器
+    kspTest(libs.room.compiler)
 
     // WorkManager (≈ Quartz/Spring Scheduled)
     implementation(libs.work.runtime.ktx)
@@ -77,8 +104,14 @@ dependencies {
 
     // Gson
     implementation(libs.gson)
+    implementation(libs.snakeyaml)
+    implementation(libs.commonmark)
+    implementation(libs.okhttp)
 
     testImplementation(libs.junit)
+    testImplementation(libs.room.testing)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

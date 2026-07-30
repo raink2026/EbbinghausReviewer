@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ebbinghaus-review.local/schema/v1/profile.schema.json",
+  "title": "Ebbinghaus repository profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "repository_id", "profile_id", "timezone", "review_algorithm"],
+  "properties": {
+    "schema": {"const": "ebbinghaus-profile/v1"},
+    "repository_id": {"type": "string", "format": "uuid"},
+    "profile_id": {"type": "string", "format": "uuid"},
+    "timezone": {"type": "string", "minLength": 1},
+    "review_algorithm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "parameters"],
+      "properties": {
+        "id": {"const": "ebbinghaus-8-stage"},
+        "version": {"const": 1},
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["interval_days"],
+          "properties": {
+            "interval_days": {
+              "type": "array",
+              "items": {"type": "integer", "minimum": 1},
+              "minItems": 8,
+              "maxItems": 8
+            }
+          }
+        }
+      }
+    }
+  }
+}

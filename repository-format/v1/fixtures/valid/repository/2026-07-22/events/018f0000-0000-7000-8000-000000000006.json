@@ -1,0 +1,18 @@
+{
+  "schema": "ebbinghaus-event/v1",
+  "event_id": "018f0000-0000-7000-8000-000000000006",
+  "stream_id": "review:018f0000-0000-7000-8000-000000000004",
+  "parent_event_ids": [],
+  "event_type": "review",
+  "occurred_at": "2026-07-22T21:00:00+08:00",
+  "source_device_id": "018f0000-0000-7000-8000-000000000005",
+  "algorithm": {"id": "ebbinghaus-8-stage", "version": 1},
+  "payload": {
+    "note_id": "018f0000-0000-7000-8000-000000000003",
+    "revision_id": "018f0000-0000-7000-8000-000000000004",
+    "result": "remember",
+    "stage_before": 0,
+    "stage_after": 1,
+    "next_review_at": "2026-07-24T00:00:00+08:00"
+  }
+}

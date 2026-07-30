@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ebbinghaus-review.local/schema/v1/note.schema.json",
+  "title": "Ebbinghaus Markdown front matter v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "note_id", "revision_id", "parent_revision_ids", "revision_kind", "authored_at", "learning_started_at", "source_device_id", "content_sha256"],
+  "properties": {
+    "schema": {"const": "ebbinghaus-note/v1"},
+    "note_id": {"type": "string", "format": "uuid"},
+    "revision_id": {"type": "string", "format": "uuid"},
+    "parent_revision_ids": {"type": "array", "items": {"type": "string", "format": "uuid"}, "uniqueItems": true},
+    "revision_kind": {"enum": ["create", "restart", "merge"]},
+    "authored_at": {"type": "string", "format": "date-time"},
+    "learning_started_at": {"type": "string", "format": "date-time"},
+    "source_device_id": {"type": "string", "format": "uuid"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

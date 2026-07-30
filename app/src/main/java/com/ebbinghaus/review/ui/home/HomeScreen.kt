@@ -12,6 +12,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -37,24 +43,53 @@ import androidx.navigation.NavController
 import com.ebbinghaus.review.R
 import com.ebbinghaus.review.data.ReviewItem
 import com.ebbinghaus.review.data.ReviewLog
+import com.ebbinghaus.review.data.sync.Note
 import com.ebbinghaus.review.ui.MainViewModel
 import com.ebbinghaus.review.ui.components.HistoryLogsDialog
 import com.ebbinghaus.review.ui.components.ReviewItemCard
+import com.ebbinghaus.review.ui.components.MarkdownNoteCard
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun HomeScreen(
     navController: NavController,
     viewModel: MainViewModel,
     dueItems: List<ReviewItem>,
-    todayReviewedItems: List<ReviewItem>
+    todayReviewedItems: List<ReviewItem>,
+    dueSyncedNotes: List<Note>,
+    todaySyncedNotes: List<Note>,
+    conflictedSyncedNotes: List<Note>
 ) {
+    var isRefreshing by remember { mutableStateOf(false) }
+    val refreshScope = rememberCoroutineScope()
+    val requestRefresh: () -> Unit = {
+        isRefreshing = true
+        viewModel.requestProfileSync()
+        refreshScope.launch {
+            delay(750)
+            isRefreshing = false
+        }
+    }
+    val pullRefreshState = rememberPullRefreshState(isRefreshing, requestRefresh)
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.review_list)) },
                 actions = {
+                    if (conflictedSyncedNotes.isNotEmpty()) {
+                        IconButton(onClick = { navController.navigate("conflicts") }) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = "待处理冲突 ${conflictedSyncedNotes.size}",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    IconButton(onClick = requestRefresh) {
+                        Icon(Icons.Default.Refresh, contentDescription = "同步")
+                    }
                     // 回收站入口
                     IconButton(onClick = { navController.navigate("trash") }) {
                         Icon(Icons.Default.Delete, contentDescription = "Trash")
@@ -75,70 +110,88 @@ fun HomeScreen(
             }
         }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .pullRefresh(pullRefreshState)
         ) {
-            // 1. 待复习列表
-            Text(
-                text = "${stringResource(R.string.to_review)} (${dueItems.size})",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(16.dp)
-            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                // 1. 待复习列表
+                Text(
+                    text = "${stringResource(R.string.to_review)} (${dueItems.size + dueSyncedNotes.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(16.dp)
+                )
 
-            if (dueItems.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(stringResource(R.string.no_review_tasks), color = Color.Gray)
+                if (dueItems.isEmpty() && dueSyncedNotes.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(stringResource(R.string.no_review_tasks), color = Color.Gray)
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.weight(1f)) {
+                        items(dueSyncedNotes, key = { "sync-${it.noteId}" }) { note ->
+                            MarkdownNoteCard(note) {
+                                navController.navigate("markdown/${note.noteId}")
+                            }
+                        }
+                        items(dueItems, key = { it.id }) { item ->
+                            ReviewItemCardWrapper(
+                                item = item,
+                                viewModel = viewModel,
+                                onClick = { navController.navigate("review/${item.id}") }
+                            )
+                        }
+                    }
                 }
-            } else {
-                LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(dueItems, key = { it.id }) { item ->
-                        ReviewItemCardWrapper(
-                            item = item,
-                            viewModel = viewModel,
-                            onClick = { navController.navigate("review/${item.id}") }
-                        )
+
+                Divider()
+
+                // 2. 今日已完成列表
+                Text(
+                    text = "${stringResource(R.string.studied_today)} (${todayReviewedItems.size + todaySyncedNotes.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(16.dp)
+                )
+
+                if (todayReviewedItems.isEmpty() && todaySyncedNotes.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.TopCenter
+                    ) {
+                        Text(stringResource(R.string.no_study_today), color = Color.Gray, modifier = Modifier.padding(top = 32.dp))
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.weight(1f)) {
+                        items(todaySyncedNotes, key = { "sync-${it.noteId}" }) { note ->
+                            MarkdownNoteCard(note) {
+                                navController.navigate("markdown/${note.noteId}")
+                            }
+                        }
+                        items(todayReviewedItems, key = { it.id }) { item ->
+                            ReviewItemCardWrapper(
+                                item = item,
+                                viewModel = viewModel,
+                                onClick = { navController.navigate("review/${item.id}") }
+                            )
+                        }
                     }
                 }
             }
-
-            Divider()
-
-            // 2. 今日已完成列表
-            Text(
-                text = "${stringResource(R.string.studied_today)} (${todayReviewedItems.size})",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.padding(16.dp)
+            PullRefreshIndicator(
+                refreshing = isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
             )
-
-            if (todayReviewedItems.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    Text(stringResource(R.string.no_study_today), color = Color.Gray, modifier = Modifier.padding(top = 32.dp))
-                }
-            } else {
-                LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(todayReviewedItems, key = { it.id }) { item ->
-                        ReviewItemCardWrapper(
-                            item = item,
-                            viewModel = viewModel,
-                            onClick = { navController.navigate("review/${item.id}") }
-                        )
-                    }
-                }
-            }
         }
     }
 }

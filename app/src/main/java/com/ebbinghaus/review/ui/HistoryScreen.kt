@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.ebbinghaus.review.data.sync.ProfileTimeService
+import com.ebbinghaus.review.ui.components.MarkdownNoteCard
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -33,14 +35,24 @@ fun HistoryScreen(
     navController: NavController,
     viewModel: MainViewModel
 ) {
+    val profile by viewModel.currentProfile.collectAsState()
+    val today = profile?.let {
+        ProfileTimeService.forProfile(it).localDateAt(System.currentTimeMillis())
+    } ?: LocalDate.now()
     // 状态：当前展示的月份
-    var currentMonth by remember { mutableStateOf(YearMonth.now()) }
+    var currentMonth by remember { mutableStateOf(YearMonth.from(today)) }
     // 状态：用户选中的日期 (默认今天)
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var selectedDate by remember { mutableStateOf(today) }
     
     // 数据流
     val historyItems by viewModel.historyItems.collectAsState()
+    val syncHistoryNotes by viewModel.syncHistoryNotes.collectAsState()
     val hasDataDates by viewModel.hasDataDates.collectAsState()
+
+    LaunchedEffect(profile?.profileId, today) {
+        selectedDate = today
+        currentMonth = YearMonth.from(today)
+    }
 
     // 初始化：加载热力点数据，并选中今天
     LaunchedEffect(Unit) {
@@ -61,6 +73,7 @@ fun HistoryScreen(
             CalendarWidget(
                 currentMonth = currentMonth,
                 selectedDate = selectedDate,
+                today = today,
                 hasDataDates = hasDataDates,
                 onMonthChange = { currentMonth = it },
                 onDateSelected = { selectedDate = it }
@@ -70,18 +83,23 @@ fun HistoryScreen(
 
             // === 2. 选中日期的详情列表 ===
             Text(
-                text = "${selectedDate.monthValue}月${selectedDate.dayOfMonth}日 计划复习 ${historyItems.size} 个知识点",
+                text = "${selectedDate.monthValue}月${selectedDate.dayOfMonth}日 计划复习 ${historyItems.size + syncHistoryNotes.size} 项",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 color = MaterialTheme.colorScheme.primary
             )
 
-            if (historyItems.isEmpty()) {
+            if (historyItems.isEmpty() && syncHistoryNotes.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("这一天没有复习计划，休息一下吧！", color = Color.Gray)
                 }
             } else {
                 LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+                    items(syncHistoryNotes, key = { "sync-${it.noteId}" }) { note ->
+                        MarkdownNoteCard(note) {
+                            navController.navigate("markdown/${note.noteId}")
+                        }
+                    }
                     items(historyItems) { item ->
                         // 修改这里：点击卡片跳转到详情
                         HistoryItemCard(item) {
@@ -98,6 +116,7 @@ fun HistoryScreen(
 fun CalendarWidget(
     currentMonth: YearMonth,
     selectedDate: LocalDate,
+    today: LocalDate,
     hasDataDates: Set<String>,
     onMonthChange: (YearMonth) -> Unit,
     onDateSelected: (LocalDate) -> Unit
@@ -159,7 +178,7 @@ fun CalendarWidget(
                 val dateNum = day + 1
                 val thisDate = currentMonth.atDay(dateNum)
                 val isSelected = thisDate == selectedDate
-                val isToday = thisDate == LocalDate.now()
+                val isToday = thisDate == today
                 
                 val dateKey = "${thisDate.year}-${String.format("%02d", thisDate.monthValue)}-${String.format("%02d", thisDate.dayOfMonth)}"
                 val hasData = hasDataDates.contains(dateKey)

@@ -1,0 +1,20 @@
+{
+  "revision_cases": [
+    {"name":"create","valid":true,"expected":"active","nodes":[{"id":"r1","parents":[]}],"leaves":["r1"]},
+    {"name":"restart","valid":true,"expected":"active-child","nodes":[{"id":"r1","parents":[]},{"id":"r2","parents":["r1"]}],"leaves":["r2"]},
+    {"name":"divergent","valid":true,"expected":"content-conflict","nodes":[{"id":"r1","parents":[]},{"id":"r2","parents":["r1"]},{"id":"r3","parents":["r1"]}],"leaves":["r2","r3"]},
+    {"name":"merge","valid":true,"expected":"active-merge","nodes":[{"id":"r1","parents":[]},{"id":"r2","parents":["r1"]},{"id":"r3","parents":["r1"]},{"id":"r4","parents":["r2","r3"]}],"leaves":["r4"]},
+    {"name":"cycle","valid":false,"expected":"invalid","nodes":[{"id":"r1","parents":["r2"]},{"id":"r2","parents":["r1"]}],"leaves":[]},
+    {"name":"missing-parent","valid":false,"expected":"invalid","nodes":[{"id":"r2","parents":["missing"]}],"leaves":["r2"]}
+  ],
+  "event_cases": [
+    {"name":"linear-review","valid":true,"expected":"scheduled","nodes":[{"id":"e1","parents":[]},{"id":"e2","parents":["e1"]}],"leaves":["e2"]},
+    {"name":"concurrent-review","valid":true,"expected":"review-conflict","nodes":[{"id":"e1","parents":[]},{"id":"e2","parents":["e1"]},{"id":"e3","parents":["e1"]}],"leaves":["e2","e3"]},
+    {"name":"review-merge","valid":true,"expected":"scheduled","nodes":[{"id":"e1","parents":[]},{"id":"e2","parents":["e1"]},{"id":"e3","parents":["e1"]},{"id":"e4","parents":["e2","e3"]}],"leaves":["e4"]},
+    {"name":"delete","valid":true,"expected":"deleted","nodes":[{"id":"d1","parents":[]}],"leaves":["d1"]},
+    {"name":"restore","valid":true,"expected":"active","nodes":[{"id":"d1","parents":[]},{"id":"d2","parents":["d1"]}],"leaves":["d2"]},
+    {"name":"lifecycle-conflict","valid":true,"expected":"deletion-conflict","nodes":[{"id":"d1","parents":[]},{"id":"d2","parents":["d1"]},{"id":"d3","parents":["d1"]}],"leaves":["d2","d3"]},
+    {"name":"stale-event","valid":true,"expected":"retained-inactive","nodes":[{"id":"s1","parents":[]},{"id":"s2","parents":["s1"]}],"leaves":["s2"]},
+    {"name":"event-id-reuse","valid":false,"expected":"invalid","nodes":[{"id":"same","parents":[]},{"id":"same-copy","parents":[]}],"leaves":["same","same-copy"]}
+  ]
+}

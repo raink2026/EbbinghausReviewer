@@ -27,7 +27,13 @@ class ReviewWorker(
         val db = AppDatabase.getDatabase(context)
         
         // 2. 查询是否有到期的任务
-        val dueCount = db.reviewDao().getDueCountSync(System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        val legacyDueCount = db.reviewDao().getDueCountSync(now)
+        val profile = db.profileDao().getCurrentProfile()
+        val syncedDueCount = profile?.let {
+            db.noteProjectionDao().getDueCount(it.profileId, now)
+        } ?: 0
+        val dueCount = legacyDueCount + syncedDueCount
         
         // 3. 如果有待复习项，发送通知
         if (dueCount > 0) {

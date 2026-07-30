@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.ebbinghaus.review.data.ReviewItem
+import com.ebbinghaus.review.data.sync.Note
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -26,11 +27,12 @@ fun TrashScreen(
     viewModel: MainViewModel
 ) {
     val deletedItems by viewModel.deletedItems.collectAsState()
+    val deletedSyncedNotes by viewModel.deletedSyncedNotes.collectAsState()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("回收站") }) }
     ) { innerPadding ->
-        if (deletedItems.isEmpty()) {
+        if (deletedItems.isEmpty() && deletedSyncedNotes.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 Text("回收站是空的", color = Color.Gray)
             }
@@ -43,6 +45,12 @@ fun TrashScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray,
                         modifier = Modifier.padding(16.dp)
+                    )
+                }
+                items(deletedSyncedNotes, key = { "sync-${it.noteId}" }) { note ->
+                    SyncedTrashItemCard(
+                        note = note,
+                        onRestore = { viewModel.restoreMarkdownNote(note.noteId) }
                     )
                 }
                 items(deletedItems) { item ->
@@ -103,6 +111,32 @@ fun TrashItemCard(item: ReviewItem, onRestore: () -> Unit, onDelete: () -> Unit)
             // 彻底删除按钮
             IconButton(onClick = { showDeleteConfirm = true }) {
                 Icon(Icons.Default.Delete, contentDescription = "Delete Forever", tint = Color.Gray)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SyncedTrashItemCard(note: Note, onRestore: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = MaterialTheme.shapes.small
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(note.title, fontWeight = FontWeight.Bold)
+                Text("已同步删除", style = MaterialTheme.typography.bodySmall, color = Color.Red)
+            }
+            IconButton(onClick = onRestore) {
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = "恢复",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

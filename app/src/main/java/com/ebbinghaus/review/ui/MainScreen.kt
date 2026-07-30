@@ -33,8 +33,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ebbinghaus.review.MainActivity
 import com.ebbinghaus.review.ui.add.AddItemScreen
+import com.ebbinghaus.review.ui.add.EditMarkdownScreen
 import com.ebbinghaus.review.ui.home.HomeScreen
+import com.ebbinghaus.review.ui.conflict.ConflictListScreen
+import com.ebbinghaus.review.ui.conflict.ConflictResolutionScreen
 import com.ebbinghaus.review.ui.review.ReviewScreen
+import com.ebbinghaus.review.ui.review.MarkdownReviewScreen
 import com.ebbinghaus.review.ui.theme.AppIcons
 
 sealed class Screen(val route: String, val label: String) {
@@ -55,6 +59,9 @@ fun MainScreen(activity: MainActivity) {
     val viewModel: MainViewModel = viewModel()
     val dueItems by viewModel.dueItems.collectAsState()
     val todayReviewedItems by viewModel.todayReviewedItems.collectAsState()
+    val dueSyncedNotes by viewModel.dueSyncedNotes.collectAsState()
+    val todaySyncedNotes by viewModel.todaySyncedNotes.collectAsState()
+    val conflictedSyncedNotes by viewModel.conflictedSyncedNotes.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
 
     Scaffold(
@@ -108,7 +115,10 @@ fun MainScreen(activity: MainActivity) {
                     navController = navController,
                     viewModel = viewModel,
                     dueItems = dueItems,
-                    todayReviewedItems = todayReviewedItems
+                    todayReviewedItems = todayReviewedItems,
+                    dueSyncedNotes = dueSyncedNotes,
+                    todaySyncedNotes = todaySyncedNotes,
+                    conflictedSyncedNotes = conflictedSyncedNotes
                 )
             }
             composable(Screen.Plan.route) {
@@ -140,11 +150,47 @@ fun MainScreen(activity: MainActivity) {
                 val itemId = backStackEntry.arguments?.getLong("itemId") ?: 0L
                 ReviewScreen(navController, viewModel, itemId)
             }
+            composable(
+                route = "markdown/{noteId}",
+                arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                MarkdownReviewScreen(
+                    navController,
+                    viewModel,
+                    backStackEntry.arguments?.getString("noteId").orEmpty()
+                )
+            }
+            composable(
+                route = "edit_markdown/{noteId}",
+                arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                EditMarkdownScreen(
+                    navController,
+                    viewModel,
+                    backStackEntry.arguments?.getString("noteId").orEmpty()
+                )
+            }
             composable("history") {
                 HistoryScreen(navController, viewModel)
             }
             composable("trash") {
                 TrashScreen(navController, viewModel)
+            }
+            composable("repository_settings") {
+                RepositorySettingsScreen()
+            }
+            composable("conflicts") {
+                ConflictListScreen(navController, conflictedSyncedNotes)
+            }
+            composable(
+                route = "conflict/{noteId}",
+                arguments = listOf(navArgument("noteId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                ConflictResolutionScreen(
+                    navController,
+                    viewModel,
+                    backStackEntry.arguments?.getString("noteId").orEmpty()
+                )
             }
         }
     }

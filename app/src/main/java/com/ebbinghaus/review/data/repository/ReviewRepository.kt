@@ -5,12 +5,14 @@ import com.ebbinghaus.review.data.ReviewDao
 import com.ebbinghaus.review.data.ReviewItem
 import com.ebbinghaus.review.data.ReviewLog
 import com.ebbinghaus.review.data.ReviewItemMinimal
+import com.ebbinghaus.review.data.migration.LegacyDataGuard
 import com.ebbinghaus.review.utils.EbbinghausManager
 import kotlinx.coroutines.flow.Flow
 
 class ReviewRepository(
     private val reviewDao: ReviewDao,
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    private val legacyGuard: LegacyDataGuard
 ) {
 
     val allActiveItems: Flow<List<ReviewItem>> = reviewDao.getAllActiveItems()
@@ -27,6 +29,7 @@ class ReviewRepository(
     suspend fun getAllItemsSync(): List<ReviewItem> = reviewDao.getAllItemsSync()
 
     suspend fun addItem(title: String, description: String, content: String, imageUris: List<String>) {
+        legacyGuard.requireWritable()
         // Save images first
         val savedImagePaths = mutableListOf<String>()
         try {
@@ -57,6 +60,7 @@ class ReviewRepository(
     }
 
     suspend fun markAsReviewed(item: ReviewItem, remembered: Boolean) {
+        legacyGuard.requireWritable()
         val currentStage = item.stage
         var nextStage = currentStage
         var nextTime = item.nextReviewTime
@@ -90,18 +94,22 @@ class ReviewRepository(
     }
 
     suspend fun moveToTrash(item: ReviewItem) {
+        legacyGuard.requireWritable()
         reviewDao.update(item.copy(isDeleted = true, deletedTime = System.currentTimeMillis()))
     }
 
     suspend fun restoreFromTrash(item: ReviewItem) {
+        legacyGuard.requireWritable()
         reviewDao.update(item.copy(isDeleted = false, deletedTime = null))
     }
 
     suspend fun deletePermanently(item: ReviewItem) {
+        legacyGuard.requireWritable()
         reviewDao.delete(item)
     }
 
     suspend fun deleteExpiredItems(threshold: Long) {
+        if (legacyGuard.isReadOnly) return
         reviewDao.deleteExpiredItems(threshold)
     }
 
@@ -110,6 +118,7 @@ class ReviewRepository(
     }
 
     suspend fun updateItem(item: ReviewItem) {
+        legacyGuard.requireWritable()
         reviewDao.update(item)
     }
 

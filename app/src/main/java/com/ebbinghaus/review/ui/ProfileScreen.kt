@@ -138,6 +138,14 @@ fun ProfileScreen(
                                 onImport()
                             }
                         }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        ActionItem(
+                            icon = Icons.Default.Settings,
+                            label = "仓库同步",
+                            color = MaterialTheme.colorScheme.primary
+                        ) {
+                            navController.navigate("repository_settings")
+                        }
 
                         Spacer(modifier = Modifier.height(32.dp))
                         Text(stringResource(R.string.personalization), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
