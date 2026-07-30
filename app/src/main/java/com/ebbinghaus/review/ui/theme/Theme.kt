@@ -1,84 +1,52 @@
 package com.ebbinghaus.review.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography as MaterialTypography
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+val AppShapes = Shapes(
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(4.dp),
+    medium = RoundedCornerShape(6.dp),
+    large = RoundedCornerShape(6.dp),
+    extraLarge = RoundedCornerShape(6.dp)
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+private fun scaledTypography(fontScale: Float, font: AppThemeFont): MaterialTypography = Typography.copy(
+    displayLarge = Typography.displayLarge.copy(fontFamily = font.family, fontSize = Typography.displayLarge.fontSize * fontScale),
+    displayMedium = Typography.displayMedium.copy(fontFamily = font.family, fontSize = Typography.displayMedium.fontSize * fontScale),
+    displaySmall = Typography.displaySmall.copy(fontFamily = font.family, fontSize = Typography.displaySmall.fontSize * fontScale),
+    headlineLarge = Typography.headlineLarge.copy(fontFamily = font.family, fontSize = Typography.headlineLarge.fontSize * fontScale),
+    headlineMedium = Typography.headlineMedium.copy(fontFamily = font.family, fontSize = Typography.headlineMedium.fontSize * fontScale),
+    headlineSmall = Typography.headlineSmall.copy(fontFamily = font.family, fontSize = Typography.headlineSmall.fontSize * fontScale),
+    titleLarge = Typography.titleLarge.copy(fontFamily = font.family, fontSize = Typography.titleLarge.fontSize * fontScale),
+    titleMedium = Typography.titleMedium.copy(fontFamily = font.family, fontSize = Typography.titleMedium.fontSize * fontScale),
+    titleSmall = Typography.titleSmall.copy(fontFamily = font.family, fontSize = Typography.titleSmall.fontSize * fontScale),
+    bodyLarge = Typography.bodyLarge.copy(fontFamily = font.family, fontSize = Typography.bodyLarge.fontSize * fontScale),
+    bodyMedium = Typography.bodyMedium.copy(fontFamily = font.family, fontSize = Typography.bodyMedium.fontSize * fontScale),
+    bodySmall = Typography.bodySmall.copy(fontFamily = font.family, fontSize = Typography.bodySmall.fontSize * fontScale),
+    labelLarge = Typography.labelLarge.copy(fontFamily = font.family, fontSize = Typography.labelLarge.fontSize * fontScale),
+    labelMedium = Typography.labelMedium.copy(fontFamily = font.family, fontSize = Typography.labelMedium.fontSize * fontScale),
+    labelSmall = Typography.labelSmall.copy(fontFamily = font.family, fontSize = Typography.labelSmall.fontSize * fontScale)
 )
 
 @Composable
 fun EbbinghausReviewTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
     fontScale: Float = 1.0f,
-    themeColor: Long? = null,
+    themeConfig: AppThemeConfig = AppThemeConfig(),
     content: @Composable () -> Unit
 ) {
-    val baseColorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
-    val colorScheme = if (themeColor != null) {
-        baseColorScheme.copy(background = androidx.compose.ui.graphics.Color(themeColor))
-    } else {
-        baseColorScheme
-    }
-
-    val scaledTypography = Typography.copy(
-        displayLarge = Typography.displayLarge.copy(fontSize = Typography.displayLarge.fontSize * fontScale),
-        displayMedium = Typography.displayMedium.copy(fontSize = Typography.displayMedium.fontSize * fontScale),
-        displaySmall = Typography.displaySmall.copy(fontSize = Typography.displaySmall.fontSize * fontScale),
-        headlineLarge = Typography.headlineLarge.copy(fontSize = Typography.headlineLarge.fontSize * fontScale),
-        headlineMedium = Typography.headlineMedium.copy(fontSize = Typography.headlineMedium.fontSize * fontScale),
-        headlineSmall = Typography.headlineSmall.copy(fontSize = Typography.headlineSmall.fontSize * fontScale),
-        titleLarge = Typography.titleLarge.copy(fontSize = Typography.titleLarge.fontSize * fontScale),
-        titleMedium = Typography.titleMedium.copy(fontSize = Typography.titleMedium.fontSize * fontScale),
-        titleSmall = Typography.titleSmall.copy(fontSize = Typography.titleSmall.fontSize * fontScale),
-        bodyLarge = Typography.bodyLarge.copy(fontSize = Typography.bodyLarge.fontSize * fontScale),
-        bodyMedium = Typography.bodyMedium.copy(fontSize = Typography.bodyMedium.fontSize * fontScale),
-        bodySmall = Typography.bodySmall.copy(fontSize = Typography.bodySmall.fontSize * fontScale),
-        labelLarge = Typography.labelLarge.copy(fontSize = Typography.labelLarge.fontSize * fontScale),
-        labelMedium = Typography.labelMedium.copy(fontSize = Typography.labelMedium.fontSize * fontScale),
-        labelSmall = Typography.labelSmall.copy(fontSize = Typography.labelSmall.fontSize * fontScale)
-    )
+    val resolved = resolveAppTheme(darkTheme, themeConfig)
 
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = scaledTypography,
+        colorScheme = resolved.colorScheme,
+        typography = scaledTypography(fontScale, resolved.font),
+        shapes = AppShapes,
         content = content
     )
 }

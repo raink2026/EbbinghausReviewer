@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.ebbinghaus.review.R
 import com.ebbinghaus.review.data.AppDatabase
 import com.ebbinghaus.review.data.User
+import com.ebbinghaus.review.ui.theme.AppThemeConfig
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -60,10 +61,21 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun updateThemeColor(color: Long?) {
+    fun updateTheme(config: AppThemeConfig) {
         viewModelScope.launch {
             currentUser.value?.let { user ->
-                userDao.updateUser(user.copy(themeColor = color))
+                userDao.updateUser(
+                    user.copy(
+                        themeColor = null,
+                        themePreset = config.preset.storageId,
+                        customThemeDark = config.customDark,
+                        customThemeFont = config.customFont.storageId,
+                        customThemeBackground = config.customBackground,
+                        customThemeSurface = config.customSurface,
+                        customThemePrimary = config.customPrimary,
+                        customThemeText = config.customText
+                    )
+                )
             }
         }
     }

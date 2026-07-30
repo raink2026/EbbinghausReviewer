@@ -19,11 +19,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.ebbinghaus.review.data.sync.Note
 import com.ebbinghaus.review.ui.MainViewModel
+import com.ebbinghaus.review.ui.components.AppTopBar
+import com.ebbinghaus.review.ui.components.EmptyState
 import com.ebbinghaus.review.ui.markdown.MarkdownRenderer
 import java.text.DateFormat
 import java.util.Date
@@ -48,22 +52,16 @@ fun ConflictListScreen(
     notes: List<Note>
 ) {
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("同步冲突") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                }
-            )
+            AppTopBar(title = "同步冲突", onBack = { navController.popBackStack() })
         }
     ) { padding ->
         if (notes.isEmpty()) {
             Box(
                 Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
-            ) { Text("没有待处理冲突") }
+            ) { EmptyState(title = "没有待处理冲突", supporting = "同步状态正常") }
         } else {
             LazyColumn(Modifier.fillMaxSize().padding(padding)) {
                 items(notes, key = Note::noteId) { note ->
@@ -79,7 +77,8 @@ fun ConflictListScreen(
                         },
                         modifier = Modifier.clickable {
                             navController.navigate("conflict/${note.noteId}")
-                        }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
                     )
                     HorizontalDivider()
                 }
@@ -107,15 +106,9 @@ fun ConflictResolutionScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text(detail?.note?.title ?: "解决冲突") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                }
-            )
+            AppTopBar(title = detail?.note?.title ?: "解决冲突", onBack = { navController.popBackStack() })
         }
     ) { padding ->
         when {
@@ -137,13 +130,17 @@ fun ConflictResolutionScreen(
                 when (checkNotNull(detail).state) {
                     "CONTENT_CONFLICT" -> {
                         items(checkNotNull(detail).revisions, key = { it.revision.revisionId }) { branch ->
-                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = MaterialTheme.shapes.medium
+                            ) { Column(Modifier.padding(16.dp)) {
                                 Text(
                                     "分支 ${branch.revision.revisionId.take(8)}",
                                     style = MaterialTheme.typography.titleSmall
                                 )
                                 MarkdownRenderer(branch.markdownBody, branch.assets)
-                            }
+                            } }
                             HorizontalDivider()
                         }
                         item {
@@ -179,7 +176,7 @@ fun ConflictResolutionScreen(
                         }
                         items(checkNotNull(detail).reviewOptions, key = ReviewConflictOption::eventId) { option ->
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
@@ -222,7 +219,11 @@ fun ConflictResolutionScreen(
                             ) { Text("保持删除") }
                         }
                         items(checkNotNull(detail).revisions, key = { it.revision.revisionId }) { branch ->
-                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = MaterialTheme.shapes.medium
+                            ) { Column(Modifier.padding(16.dp)) {
                                 Text("恢复分支 ${branch.revision.revisionId.take(8)}")
                                 MarkdownRenderer(branch.markdownBody, branch.assets)
                                 Button(
@@ -238,7 +239,7 @@ fun ConflictResolutionScreen(
                                     },
                                     modifier = Modifier.fillMaxWidth()
                                 ) { Text("恢复此版本") }
-                            }
+                            } }
                             HorizontalDivider()
                         }
                     }

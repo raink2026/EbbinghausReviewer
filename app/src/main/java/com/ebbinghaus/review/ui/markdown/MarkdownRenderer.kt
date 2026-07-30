@@ -2,6 +2,7 @@ package com.ebbinghaus.review.ui.markdown
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +11,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -23,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.AnnotatedString
@@ -118,18 +122,20 @@ fun MarkdownRenderer(
                     fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.bodyMedium
                 )
-                is MarkdownBlockUi.QuoteBlock -> Text(
-                    text = block.text,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = RoundedCornerShape(2.dp)
-                        )
-                        .padding(12.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                is MarkdownBlockUi.QuoteBlock -> Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        Modifier.width(3.dp).heightIn(min = 40.dp)
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp))
+                    )
+                    Text(
+                        text = block.text,
+                        modifier = Modifier.weight(1f).padding(start = 12.dp, top = 8.dp, bottom = 8.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 is MarkdownBlockUi.ListBlock -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     block.items.forEachIndexed { index, item ->
                         Text(if (block.ordered) "${index + 1}. $item" else "• $item")
@@ -169,7 +175,9 @@ private fun InlineContent(
                         AsyncImage(
                             model = file,
                             contentDescription = token.altText,
-                            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+                            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+                                .clip(MaterialTheme.shapes.small)
+                                .clickable(enabled = onImageClick != null) { onImageClick?.invoke(file.toURI().toString()) },
                             contentScale = ContentScale.Fit
                         )
                     } else {
@@ -188,7 +196,7 @@ private fun MissingAsset(onRepairAsset: (() -> Unit)?) {
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(16f / 5f)
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center

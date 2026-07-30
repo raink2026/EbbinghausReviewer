@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
@@ -20,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.ebbinghaus.review.ui.theme.HeatmapGreenDark
 import com.ebbinghaus.review.ui.theme.HeatmapGreenLight
 import com.ebbinghaus.review.ui.theme.HeatmapGray
+import com.ebbinghaus.review.ui.components.AppTopBar
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -38,15 +41,9 @@ fun PlanStatsScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("坚持记录") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+            AppTopBar(title = "坚持记录", onBack = onBack)
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
@@ -58,7 +55,7 @@ fun PlanStatsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { viewModel.changeStatsMonth(-1) }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Prev")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "上个月")
                 }
                 Text(
                     text = "${currentMonth.year}年 ${currentMonth.monthValue}月",
@@ -66,7 +63,7 @@ fun PlanStatsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 IconButton(onClick = { viewModel.changeStatsMonth(1) }) {
-                    Icon(Icons.Default.ArrowForward, contentDescription = "Next")
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "下个月")
                 }
             }
 
@@ -77,7 +74,9 @@ fun PlanStatsScreen(
             val perfectDays = heatMap.values.count { it >= 3 } // 假设每天完成3个算完美
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
             ) {
                 Row(
@@ -97,13 +96,13 @@ fun PlanStatsScreen(
 
             // 图例
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.End)) {
-                Text("少", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text("少", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.width(4.dp))
                 HeatMapCell(color = HeatmapGray) // 0
                 HeatMapCell(color = HeatmapGreenLight) // 1-2
                 HeatMapCell(color = HeatmapGreenDark) // 3+
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("多", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text("多", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -137,7 +136,7 @@ fun HeatMapCalendar(
                 text = listOf("一","二","三","四","五","六","日")[it],
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -170,7 +169,7 @@ fun HeatMapCalendar(
                 Text(
                     text = "${day + 1}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (count >= 3) Color.White else Color.Black
+                    color = if (count >= 3) Color.White else MaterialTheme.colorScheme.onSurface
                 )
             }
         }

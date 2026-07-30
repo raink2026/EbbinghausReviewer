@@ -1,25 +1,54 @@
 package com.ebbinghaus.review.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,9 +56,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.ebbinghaus.review.R
 import com.ebbinghaus.review.data.User
-import com.ebbinghaus.review.ui.theme.*
+import com.ebbinghaus.review.ui.components.AppListRow
+import com.ebbinghaus.review.ui.components.GroupedSection
+import com.ebbinghaus.review.ui.components.ThemePicker
+import com.ebbinghaus.review.ui.theme.AppThemeConfig
+import com.ebbinghaus.review.ui.theme.AppIcons
+import com.ebbinghaus.review.ui.theme.toAppThemeConfig
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     navController: NavController,
@@ -39,238 +72,204 @@ fun ProfileScreen(
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
     val allUsers by viewModel.allUsers.collectAsState()
-
-    // UI 状态：控制弹窗
     var showUserSwitcher by remember { mutableStateOf(false) }
     var showCreateUserDialog by remember { mutableStateOf(false) }
 
-    // 个性化状态 (暂存本地，实际可存 DataStore)
-    var useDarkWallpaper by remember { mutableStateOf(true) }
-
-    Scaffold(
-        containerColor = Color.Transparent
-    ) { innerPadding ->
-        // 使用 Box 实现背景图层叠
-        Box(modifier = Modifier.fillMaxSize()) {
-
-            if (currentUser?.themeColor == null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = if (useDarkWallpaper)
-                                    listOf(DarkWallpaperStart, DarkWallpaperEnd)
-                                else
-                                    listOf(LightWallpaperStart, LightWallpaperEnd)
-                            )
-                        )
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                UserHeader(
+                    name = currentUser?.name ?: stringResource(R.string.not_logged_in),
+                    onClick = { showUserSwitcher = true }
                 )
             }
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = innerPadding
-            ) {
-                // === 头部用户信息 ===
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 60.dp, bottom = 40.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // 头像
-                        Surface(
-                            shape = CircleShape,
-                            modifier = Modifier.size(100.dp).clickable { showUserSwitcher = true },
-                            shadowElevation = 8.dp
-                        ) {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.background(Color.LightGray)) {
-                                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(60.dp), tint = Color.White)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // 用户名 + 切换角标
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color.White.copy(alpha = 0.2f))
-                                .clickable { showUserSwitcher = true }
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = currentUser?.name ?: stringResource(R.string.not_logged_in),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.White)
-                        }
-                    }
+            item {
+                GroupedSection(title = stringResource(R.string.data_management)) {
+                    ProfileActionRow(
+                        icon = Icons.Outlined.Delete,
+                        title = stringResource(R.string.recy__bin),
+                        onClick = { navController.navigate("trash") }
+                    )
+                    ProfileActionRow(
+                        icon = Icons.Default.Share,
+                        title = stringResource(R.string.export_data),
+                        onClick = onExport
+                    )
+                    ProfileActionRow(
+                        icon = Icons.Default.Add,
+                        title = stringResource(R.string.import_backup),
+                        onClick = onImport
+                    )
+                    ProfileActionRow(
+                        icon = Icons.Default.Settings,
+                        title = "仓库与同步",
+                        supporting = "Gitee 档案、同步状态与迁移",
+                        onClick = { navController.navigate("repository_settings") },
+                        showDivider = false
+                    )
                 }
-
-                // === 内容区域 (白色圆角背景) ===
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(24.dp)
-                    ) {
-                        Text(stringResource(R.string.data_management), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // 功能入口 Grid
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            ActionItem(icon = Icons.Outlined.Delete, label = stringResource(R.string.recy__bin), color = ActionItemRed) {
-                                navController.navigate("trash")
-                            }
-                            ActionItem(icon = Icons.Default.Share, label = stringResource(R.string.export_data), color = ActionItemBlue) {
-                                onExport()
-                            }
-                            ActionItem(icon = Icons.Default.Add, label = stringResource(R.string.import_backup), color = ActionItemGreen) {
-                                onImport()
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        ActionItem(
-                            icon = Icons.Default.Settings,
-                            label = "仓库同步",
-                            color = MaterialTheme.colorScheme.primary
-                        ) {
-                            navController.navigate("repository_settings")
-                        }
-
-                        Spacer(modifier = Modifier.height(32.dp))
-                        Text(stringResource(R.string.personalization), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Text(stringResource(R.string.background_color), style = MaterialTheme.typography.bodyLarge)
-                        ColorPicker(
-                            selectedColor = currentUser?.themeColor,
-                            onColorSelected = { viewModel.updateThemeColor(it) }
+            }
+            item {
+                GroupedSection(title = stringResource(R.string.personalization)) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                        ThemePicker(
+                            config = currentUser?.toAppThemeConfig() ?: AppThemeConfig(),
+                            onThemeChange = viewModel::updateTheme
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Text(stringResource(R.string.font_size), style = MaterialTheme.typography.bodyLarge)
                         FontScaleSlider(
-                            scale = currentUser?.fontScale ?: 1.0f,
-                            onScaleChanged = { viewModel.updateFontScale(it) }
+                            scale = currentUser?.fontScale ?: 1f,
+                            onScaleChanged = viewModel::updateFontScale
                         )
-
-                        // Menu Customization
-                        MenuCustomizationSection(
-                            currentUser = currentUser,
-                            onUpdateSettings = { showLabels, home, plan, profile ->
-                                viewModel.updateMenuSettings(showLabels, home, plan, profile)
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(32.dp))
-                        Text(stringResource(R.string.about), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(stringResource(R.string.app_version), color = Color.Gray)
                     }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    MenuCustomizationSection(
+                        currentUser = currentUser,
+                        onUpdateSettings = { showLabels, home, plan, profile ->
+                            viewModel.updateMenuSettings(showLabels, home, plan, profile)
+                        }
+                    )
+                }
+            }
+            item {
+                GroupedSection(title = stringResource(R.string.about)) {
+                    AppListRow(
+                        headline = "艾宾浩斯复习助手",
+                        supporting = stringResource(R.string.app_version),
+                        showDivider = false
+                    )
                 }
             }
         }
+    }
 
-        // 用户切换弹窗
-        if (showUserSwitcher) {
-            AlertDialog(
-                onDismissRequest = { showUserSwitcher = false },
-                title = { Text(stringResource(R.string.switch_user)) },
-                text = {
-                    Column {
-                        allUsers.forEach { user ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        viewModel.switchUser(user)
-                                        showUserSwitcher = false
-                                    }
-                                    .padding(vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(selected = user.isCurrent, onClick = null)
-                                Text(user.name, style = MaterialTheme.typography.bodyLarge)
-                            }
-                        }
-                        TextButton(onClick = { showCreateUserDialog = true }) {
-                            Text(stringResource(R.string.add_new_user))
+    if (showUserSwitcher) {
+        AlertDialog(
+            onDismissRequest = { showUserSwitcher = false },
+            title = { Text(stringResource(R.string.switch_user)) },
+            text = {
+                Column {
+                    allUsers.forEach { user ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                viewModel.switchUser(user)
+                                showUserSwitcher = false
+                            }.padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = user.isCurrent, onClick = null)
+                            Text(user.name, style = MaterialTheme.typography.bodyLarge)
                         }
                     }
-                },
-                confirmButton = { TextButton(onClick = { showUserSwitcher = false }) { Text(stringResource(R.string.close)) } }
-            )
-        }
-
-        // 新建用户弹窗
-        if (showCreateUserDialog) {
-            var newName by remember { mutableStateOf("") }
-            AlertDialog(
-                onDismissRequest = { showCreateUserDialog = false },
-                title = { Text(stringResource(R.string.create_new_user)) },
-                text = { OutlinedTextField(value = newName, onValueChange = { newName = it }, label = { Text(stringResource(R.string.nickname)) }) },
-                confirmButton = {
-                    Button(onClick = {
-                        if (newName.isNotBlank()) {
-                            viewModel.createUser(newName)
-                            showCreateUserDialog = false
-                        }
-                    }) { Text(stringResource(R.string.create)) }
+                    TextButton(onClick = {
+                        showUserSwitcher = false
+                        showCreateUserDialog = true
+                    }) { Text(stringResource(R.string.add_new_user)) }
                 }
-            )
-        }
+            },
+            confirmButton = {
+                TextButton(onClick = { showUserSwitcher = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        )
+    }
+
+    if (showCreateUserDialog) {
+        var newName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showCreateUserDialog = false },
+            title = { Text(stringResource(R.string.create_new_user)) },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = { Text(stringResource(R.string.nickname)) },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.createUser(newName.trim())
+                        showCreateUserDialog = false
+                    },
+                    enabled = newName.isNotBlank()
+                ) { Text(stringResource(R.string.create)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateUserDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 }
 
 @Composable
-fun ActionItem(icon: ImageVector, label: String, color: Color, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onClick() }) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(color.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
+private fun UserHeader(name: String, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 88.dp).padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(28.dp))
+            Box(
+                modifier = Modifier.size(56.dp).clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+            }
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                Text(name, style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("当前档案 · 点击切换", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(label, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
 @Composable
-fun SettingSwitchItem(title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
-fun SettingItem(title: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-    }
+private fun ProfileActionRow(
+    icon: ImageVector,
+    title: String,
+    supporting: String? = null,
+    onClick: () -> Unit,
+    showDivider: Boolean = true
+) {
+    AppListRow(
+        headline = title,
+        supporting = supporting,
+        onClick = onClick,
+        leading = {
+            Box(
+                modifier = Modifier.size(32.dp).clip(MaterialTheme.shapes.small)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+            }
+        },
+        trailing = {
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+        },
+        showDivider = showDivider
+    )
 }
 
 @Composable
@@ -279,71 +278,63 @@ fun MenuCustomizationSection(
     onUpdateSettings: (Boolean?, String?, String?, String?) -> Unit
 ) {
     var showCustomizeDialog by remember { mutableStateOf(false) }
+    if (currentUser == null) return
 
-    if (currentUser != null) {
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(stringResource(R.string.menu_settings), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        SettingSwitchItem(
-            title = stringResource(R.string.show_menu_labels),
-            checked = currentUser.showMenuLabels,
-            onCheckedChange = { onUpdateSettings(it, null, null, null) }
-        )
-
-        // Aggregated Item for Icons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showCustomizeDialog = true }
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(stringResource(R.string.customize_icons), style = MaterialTheme.typography.bodyLarge)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Show mini previews
-                Icon(AppIcons.getIcon(currentUser.homeIcon, Icons.Default.Home), contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.Gray)
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(AppIcons.getIcon(currentUser.planIcon, Icons.Default.DateRange), contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.Gray)
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(AppIcons.getIcon(currentUser.profileIcon, Icons.Default.Person), contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.Gray)
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
-            }
-        }
-
-        if (showCustomizeDialog) {
-            MenuIconsConfigurationDialog(
-                currentUser = currentUser,
-                onUpdateSettings = onUpdateSettings,
-                onDismiss = { showCustomizeDialog = false }
+    AppListRow(
+        headline = stringResource(R.string.show_menu_labels),
+        trailing = {
+            Switch(
+                checked = currentUser.showMenuLabels,
+                onCheckedChange = { onUpdateSettings(it, null, null, null) }
             )
         }
+    )
+    AppListRow(
+        headline = stringResource(R.string.customize_icons),
+        onClick = { showCustomizeDialog = true },
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(AppIcons.getIcon(currentUser.homeIcon, Icons.Default.Home), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.size(4.dp))
+                Icon(AppIcons.getIcon(currentUser.planIcon, Icons.Default.Settings), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.size(4.dp))
+                Icon(AppIcons.getIcon(currentUser.profileIcon, Icons.Default.Person), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.size(8.dp))
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = MaterialTheme.colorScheme.outline)
+            }
+        },
+        showDivider = false
+    )
+
+    if (showCustomizeDialog) {
+        MenuIconsConfigurationDialog(
+            currentUser = currentUser,
+            onUpdateSettings = onUpdateSettings,
+            onDismiss = { showCustomizeDialog = false }
+        )
     }
 }
 
 @Composable
-fun MenuIconsConfigurationDialog(
+private fun MenuIconsConfigurationDialog(
     currentUser: User,
     onUpdateSettings: (Boolean?, String?, String?, String?) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var showIconPicker by remember { mutableStateOf<String?>(null) } // "home", "plan", "profile"
-
-    if (showIconPicker != null) {
+    var showIconPicker by remember { mutableStateOf<String?>(null) }
+    val target = showIconPicker
+    if (target != null) {
         IconPickerDialog(
-            currentIconName = when (showIconPicker) {
+            currentIconName = when (target) {
                 "home" -> currentUser.homeIcon
                 "plan" -> currentUser.planIcon
-                "profile" -> currentUser.profileIcon
-                else -> ""
+                else -> currentUser.profileIcon
             },
-            onIconSelected = { newIcon ->
-                when (showIconPicker) {
-                    "home" -> onUpdateSettings(null, newIcon, null, null)
-                    "plan" -> onUpdateSettings(null, null, newIcon, null)
-                    "profile" -> onUpdateSettings(null, null, null, newIcon)
+            onIconSelected = { icon ->
+                when (target) {
+                    "home" -> onUpdateSettings(null, icon, null, null)
+                    "plan" -> onUpdateSettings(null, null, icon, null)
+                    else -> onUpdateSettings(null, null, null, icon)
                 }
                 showIconPicker = null
             },
@@ -355,280 +346,73 @@ fun MenuIconsConfigurationDialog(
             title = { Text(stringResource(R.string.customize_icons)) },
             text = {
                 Column {
-                    MenuItemSetting(
-                        label = stringResource(R.string.icon_home),
-                        iconName = currentUser.homeIcon,
-                        onClick = { showIconPicker = "home" }
-                    )
-                    MenuItemSetting(
-                        label = stringResource(R.string.icon_plan),
-                        iconName = currentUser.planIcon,
-                        onClick = { showIconPicker = "plan" }
-                    )
-                    MenuItemSetting(
-                        label = stringResource(R.string.icon_profile),
-                        iconName = currentUser.profileIcon,
-                        onClick = { showIconPicker = "profile" }
-                    )
+                    MenuItemSetting(stringResource(R.string.icon_home), currentUser.homeIcon) { showIconPicker = "home" }
+                    MenuItemSetting(stringResource(R.string.icon_plan), currentUser.planIcon) { showIconPicker = "plan" }
+                    MenuItemSetting(stringResource(R.string.icon_profile), currentUser.profileIcon) { showIconPicker = "profile" }
                 }
             },
-            confirmButton = {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
-            }
+            confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } }
         )
     }
 }
 
 @Composable
-fun MenuItemSetting(label: String, iconName: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = AppIcons.getIcon(iconName, Icons.Default.Home),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
-        }
-    }
+private fun MenuItemSetting(label: String, iconName: String, onClick: () -> Unit) {
+    AppListRow(
+        headline = label,
+        onClick = onClick,
+        leading = { Icon(AppIcons.getIcon(iconName, Icons.Default.Home), contentDescription = null) },
+        trailing = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.outline) }
+    )
 }
 
 private val IconNameTranslation = mapOf(
-    "Home" to "首页",
-    "DateRange" to "日历",
-    "Person" to "用户",
-    "Star" to "星标",
-    "Settings" to "设置",
-    "Menu" to "菜单",
-    "Info" to "信息",
-    "Favorite" to "收藏",
-    "Search" to "搜索",
-    "Edit" to "编辑",
-    "List" to "列表",
-    "Notifications" to "通知",
-    "CheckCircle" to "完成",
-    "Face" to "表情",
-    "AccountCircle" to "账户",
-    "Home (Outlined)" to "首页 (描边)",
-    "DateRange (Outlined)" to "日历 (描边)",
-    "Person (Outlined)" to "用户 (描边)",
-    "Star (Outlined)" to "星标 (描边)",
-    "Settings (Outlined)" to "设置 (描边)",
-    "Info (Outlined)" to "信息 (描边)",
-    "Favorite (Outlined)" to "收藏 (描边)",
-    "Edit (Outlined)" to "编辑 (描边)",
-    "List (Outlined)" to "列表 (描边)",
-    "Face (Outlined)" to "表情 (描边)",
-    "AccountCircle (Outlined)" to "账户 (描边)"
+    "Home" to "首页", "DateRange" to "日历", "Person" to "用户", "Star" to "星标",
+    "Settings" to "设置", "Menu" to "菜单", "Info" to "信息", "Favorite" to "收藏",
+    "Search" to "搜索", "Edit" to "编辑", "List" to "列表", "Notifications" to "通知",
+    "CheckCircle" to "完成", "Face" to "表情", "AccountCircle" to "账户",
+    "Home (Outlined)" to "首页（描边）", "DateRange (Outlined)" to "日历（描边）",
+    "Person (Outlined)" to "用户（描边）", "Star (Outlined)" to "星标（描边）",
+    "Settings (Outlined)" to "设置（描边）", "Info (Outlined)" to "信息（描边）",
+    "Favorite (Outlined)" to "收藏（描边）", "Edit (Outlined)" to "编辑（描边）",
+    "List (Outlined)" to "列表（描边）", "Face (Outlined)" to "表情（描边）",
+    "AccountCircle (Outlined)" to "账户（描边）"
 )
 
 @Composable
-fun IconPickerDialog(
-    currentIconName: String,
-    onIconSelected: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
+private fun IconPickerDialog(currentIconName: String, onIconSelected: (String) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.select_icon)) },
         text = {
-            LazyColumn(
-                modifier = Modifier.height(300.dp), // Limit height
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val icons = AppIcons.AvailableIcons.toList()
-                items(icons.size) { index ->
-                    val (name, icon) = icons[index]
-                    val displayName = IconNameTranslation[name] ?: name
+            LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                items(AppIcons.AvailableIcons.toList()) { (name, icon) ->
+                    val selected = name == currentIconName
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onIconSelected(name) }
-                            .padding(8.dp)
-                            .background(
-                                if (name == currentIconName) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                RoundedCornerShape(8.dp)
-                            )
-                            .padding(8.dp),
+                        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small)
+                            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                            .clickable { onIconSelected(name) }.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(displayName)
+                        Icon(icon, contentDescription = null)
+                        Spacer(Modifier.size(12.dp))
+                        Text(IconNameTranslation[name] ?: name)
                     }
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        }
-    )
-}
-
-@Composable
-fun ColorPicker(selectedColor: Long?, onColorSelected: (Long?) -> Unit) {
-    var showCustomColorDialog by remember { mutableStateOf(false) }
-
-    val colors = listOf(
-        null to Color.Transparent, // Default
-        0xFFF8F8F8 to Color(0xFFF8F8F8), // Light Gray
-        0xFFFFF8E1 to Color(0xFFFFF8E1), // Light Yellow
-        0xFFE0F7FA to Color(0xFFE0F7FA), // Light Cyan
-        0xFFF3E5F5 to Color(0xFFF3E5F5), // Light Purple
-        0xFFE8F5E9 to Color(0xFFE8F5E9), // Light Green
-        0xFFFFEBEE to Color(0xFFFFEBEE)  // Light Red
-    )
-
-    // Check if selected color is one of the presets
-    val isPreset = colors.any { it.first == selectedColor }
-
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            colors.forEach { (colorValue, color) ->
-                val isSelected = selectedColor == colorValue
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                        .clickable { onColorSelected(colorValue) }
-                        .then(if (isSelected) Modifier.background(Color.Black.copy(alpha = 0.1f)) else Modifier)
-                        .then(if (colorValue == null) Modifier.background(Color.Gray) else Modifier) // Visual indicator for default
-                )
-            }
-
-            // Custom Color Button
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color.LightGray)
-                    .clickable { showCustomColorDialog = true },
-                contentAlignment = Alignment.Center
-            ) {
-                 Icon(Icons.Default.Add, contentDescription = "Custom Color", tint = Color.White)
-            }
-        }
-
-        // Show selected custom color if it's not a preset
-        if (selectedColor != null && !isPreset) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                Text(stringResource(R.string.custom_color) + ": ", style = MaterialTheme.typography.bodyMedium)
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(Color(selectedColor))
-                )
-            }
-        }
-    }
-
-    if (showCustomColorDialog) {
-        CustomColorDialog(
-            initialColor = selectedColor,
-            onDismiss = { showCustomColorDialog = false },
-            onConfirm = {
-                onColorSelected(it)
-                showCustomColorDialog = false
-            }
-        )
-    }
-}
-
-@Composable
-fun CustomColorDialog(initialColor: Long?, onDismiss: () -> Unit, onConfirm: (Long) -> Unit) {
-    val initialColorObj = initialColor?.let { Color(it) } ?: Color.White
-
-    // RGB state (0-255)
-    var red by remember { mutableStateOf((initialColorObj.red * 255).toInt().toString()) }
-    var green by remember { mutableStateOf((initialColorObj.green * 255).toInt().toString()) }
-    var blue by remember { mutableStateOf((initialColorObj.blue * 255).toInt().toString()) }
-
-    fun getColor(): Long {
-        val r = red.toIntOrNull()?.coerceIn(0, 255) ?: 255
-        val g = green.toIntOrNull()?.coerceIn(0, 255) ?: 255
-        val b = blue.toIntOrNull()?.coerceIn(0, 255) ?: 255
-        // Alpha is always 255 (0xFF)
-        return (0xFF.toLong() shl 24) or (r.toLong() shl 16) or (g.toLong() shl 8) or b.toLong()
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.custom_color)) },
-        text = {
-            Column {
-                // Preview
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(getColor()))
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // RGB Inputs
-                OutlinedTextField(
-                    value = red,
-                    onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 3) red = it },
-                    label = { Text(stringResource(R.string.red)) },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = green,
-                    onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 3) green = it },
-                    label = { Text(stringResource(R.string.green)) },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = blue,
-                    onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 3) blue = it },
-                    label = { Text(stringResource(R.string.blue)) },
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onConfirm(getColor()) }) {
-                Text(stringResource(R.string.confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        }
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
 @Composable
 fun FontScaleSlider(scale: Float, onScaleChanged: (Float) -> Unit) {
     Column {
-        Slider(
-            value = scale,
-            onValueChange = onScaleChanged,
-            valueRange = 0.8f..1.5f,
-            steps = 6
-        )
+        Slider(value = scale, onValueChange = onScaleChanged, valueRange = 0.8f..1.5f, steps = 6)
         Text(
-            text = "Scale: ${String.format("%.1f", scale)}",
+            text = "${(scale * 100).toInt()}%",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
     }

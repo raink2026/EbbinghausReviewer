@@ -55,7 +55,7 @@ fun HistoryLogsDialog(item: ReviewItem, logs: List<ReviewLog>, onDismiss: () -> 
                     items(logs) { log ->
                         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             // 阶段圆圈
-                            val color = if (log.action == "REMEMBER") Color(0xFF4CAF50) else Color.Gray
+                            val color = if (log.action == "REMEMBER") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             Box(
                                 modifier = Modifier
                                     .size(24.dp)
@@ -74,7 +74,7 @@ fun HistoryLogsDialog(item: ReviewItem, logs: List<ReviewLog>, onDismiss: () -> 
                                     "${stringResource(R.string.remembered_stage)} ${log.stageAfter}" 
                                 else 
                                     stringResource(R.string.forgot_reset)
-                                Text(status, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }

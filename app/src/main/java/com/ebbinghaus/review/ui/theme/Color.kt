@@ -2,25 +2,29 @@ package com.ebbinghaus.review.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+val WeChatGreen = Color(0xFF07C160)
+val WeChatGreenPressed = Color(0xFF06AD56)
+val AppCanvasLight = Color(0xFFF5F5F5)
+val AppSurfaceLight = Color(0xFFFFFFFF)
+val AppTextPrimaryLight = Color(0xFF111111)
+val AppTextSecondaryLight = Color(0xFF7A7E83)
+val AppDividerLight = Color(0xFFEDEDED)
+val AppLinkBlue = Color(0xFF576B95)
+val AppDanger = Color(0xFFFA5151)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val AppCanvasDark = Color(0xFF111111)
+val AppSurfaceDark = Color(0xFF191919)
+val AppSurfaceRaisedDark = Color(0xFF232323)
+val AppTextPrimaryDark = Color(0xFFF2F2F2)
+val AppTextSecondaryDark = Color(0xFFB2B2B2)
+val AppDividerDark = Color(0xFF2C2C2C)
 
-val GreenDone = Color(0xFFE8F5E9)
-val RedGivenUp = Color(0xFFFFEBEE)
+val GreenDone = Color(0xFFE9F9EF)
+val RedGivenUp = Color(0xFFFFEEEE)
+val HeatmapGreenLight = Color(0xFF95E6B5)
+val HeatmapGreenDark = WeChatGreen
+val HeatmapGray = Color(0xFFE5E7E9)
 
-val HeatmapGreenLight = Color(0xFFA5D6A7)
-val HeatmapGreenDark = Color(0xFF4CAF50)
-val HeatmapGray = Color.LightGray.copy(alpha = 0.3f)
-
-val DarkWallpaperStart = Color(0xFF1A237E)
-val DarkWallpaperEnd = Color(0xFF3949AB)
-val LightWallpaperStart = Color(0xFF00695C)
-val LightWallpaperEnd = Color(0xFF4DB6AC)
-val ActionItemRed = Color(0xFFFF5252)
-val ActionItemBlue = Color(0xFF448AFF)
-val ActionItemGreen = Color(0xFF4CAF50)
+val ActionItemRed = AppDanger
+val ActionItemBlue = AppLinkBlue
+val ActionItemGreen = WeChatGreen

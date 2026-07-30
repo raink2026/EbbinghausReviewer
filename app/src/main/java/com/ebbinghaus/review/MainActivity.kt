@@ -10,6 +10,8 @@ import androidx.lifecycle.lifecycleScope
 import com.ebbinghaus.review.ui.MainScreen
 import com.ebbinghaus.review.ui.MainViewModel
 import com.ebbinghaus.review.ui.theme.EbbinghausReviewTheme
+import com.ebbinghaus.review.ui.theme.AppThemeConfig
+import com.ebbinghaus.review.ui.theme.toAppThemeConfig
 import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -71,7 +73,7 @@ class MainActivity : ComponentActivity() {
 
             EbbinghausReviewTheme(
                 fontScale = currentUser?.fontScale ?: 1.0f,
-                themeColor = currentUser?.themeColor
+                themeConfig = currentUser?.toAppThemeConfig() ?: AppThemeConfig()
             ) {
                 MainScreen(activity = this)
             }

@@ -1,27 +1,17 @@
 package com.ebbinghaus.review.ui
 
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarDefaults
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -40,6 +30,8 @@ import com.ebbinghaus.review.ui.conflict.ConflictResolutionScreen
 import com.ebbinghaus.review.ui.review.ReviewScreen
 import com.ebbinghaus.review.ui.review.MarkdownReviewScreen
 import com.ebbinghaus.review.ui.theme.AppIcons
+import com.ebbinghaus.review.ui.components.AppBottomDock
+import com.ebbinghaus.review.ui.components.BottomDockItem
 
 sealed class Screen(val route: String, val label: String) {
     object Home : Screen("home", "复习")
@@ -53,6 +45,8 @@ val items = listOf(
     Screen.Profile,
 )
 
+fun shouldShowBottomBar(route: String?): Boolean = items.any { it.route == route }
+
 @Composable
 fun MainScreen(activity: MainActivity) {
     val navController = rememberNavController()
@@ -63,49 +57,44 @@ fun MainScreen(activity: MainActivity) {
     val todaySyncedNotes by viewModel.todaySyncedNotes.collectAsState()
     val conflictedSyncedNotes by viewModel.conflictedSyncedNotes.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+    val showBottomBar = currentDestination?.hierarchy?.any { shouldShowBottomBar(it.route) } == true
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            val showLabels = currentUser?.showMenuLabels ?: true
-            val navBarHeight = if (showLabels) 80.dp else 64.dp
-
-            NavigationBar(
-                modifier = Modifier.height(navBarHeight)
-            ) {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-                items.forEach { screen ->
+            if (showBottomBar) {
+                val dockItems = items.map { screen ->
                     val iconVector = if (currentUser != null) {
-                        when (screen) {
-                            Screen.Home -> AppIcons.getIcon(currentUser!!.homeIcon, Icons.Filled.Home)
-                            Screen.Plan -> AppIcons.getIcon(currentUser!!.planIcon, Icons.Filled.DateRange)
-                            Screen.Profile -> AppIcons.getIcon(currentUser!!.profileIcon, Icons.Filled.Person)
-                        }
-                    } else {
-                        when (screen) {
-                            Screen.Home -> Icons.Filled.Home
-                            Screen.Plan -> Icons.Filled.DateRange
-                            Screen.Profile -> Icons.Filled.Person
-                        }
-                    }
-
-                    val showLabel = currentUser?.showMenuLabels ?: true
-
-                    NavigationBarItem(
-                        icon = { Icon(iconVector, contentDescription = null) },
-                        label = if (showLabel) { { Text(screen.label) } } else null,
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
+                            when (screen) {
+                                Screen.Home -> AppIcons.getIcon(currentUser!!.homeIcon, Icons.Filled.Home)
+                                Screen.Plan -> AppIcons.getIcon(currentUser!!.planIcon, Icons.Filled.DateRange)
+                                Screen.Profile -> AppIcons.getIcon(currentUser!!.profileIcon, Icons.Filled.Person)
+                            }
+                        } else {
+                            when (screen) {
+                                Screen.Home -> Icons.Filled.Home
+                                Screen.Plan -> Icons.Filled.DateRange
+                                Screen.Profile -> Icons.Filled.Person
                             }
                         }
-                    )
+                    BottomDockItem(screen.route, screen.label, iconVector)
                 }
+                AppBottomDock(
+                    items = dockItems,
+                    selectedRoute = currentDestination?.route,
+                    showLabels = currentUser?.showMenuLabels ?: true,
+                    onSelect = { route ->
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
             }
         }
     ) { innerPadding ->
@@ -177,7 +166,7 @@ fun MainScreen(activity: MainActivity) {
                 TrashScreen(navController, viewModel)
             }
             composable("repository_settings") {
-                RepositorySettingsScreen()
+                RepositorySettingsScreen(onBack = { navController.popBackStack() })
             }
             composable("conflicts") {
                 ConflictListScreen(navController, conflictedSyncedNotes)

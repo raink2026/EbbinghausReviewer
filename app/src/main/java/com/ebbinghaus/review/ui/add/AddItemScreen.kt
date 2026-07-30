@@ -40,6 +40,7 @@ import androidx.navigation.NavController
 import com.ebbinghaus.review.data.sync.protocol.MarkdownContent
 import com.ebbinghaus.review.data.sync.protocol.ResolvedMarkdownAsset
 import com.ebbinghaus.review.ui.MainViewModel
+import com.ebbinghaus.review.ui.components.AppTopBar
 import com.ebbinghaus.review.ui.markdown.MarkdownRenderer
 import kotlinx.coroutines.launch
 
@@ -118,8 +119,12 @@ private fun MarkdownEditorScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(title = { Text(if (noteId == null) "新建 Markdown 笔记" else "修订 Markdown 笔记") })
+            AppTopBar(
+                title = if (noteId == null) "新建 Markdown 笔记" else "修订 Markdown 笔记",
+                onBack = { navController.popBackStack() }
+            )
         }
     ) { innerPadding ->
         Column(
