@@ -62,20 +62,14 @@ class RepositoryConnectionServiceTest {
 
     @Test
     fun initializationPublishesEveryCanonicalControlFileAndDesktopScript() = runBlocking {
-        val profile = Profile(
-            profileId = UUID.randomUUID().toString(),
-            displayName = "Profile",
-            timezone = "Asia/Shanghai",
-            algorithmId = "ebbinghaus-8-stage",
-            algorithmVersion = 1,
-            algorithmParametersJson = "{\"interval_days\":[1,2,4,7,15,30,60,120]}"
-        )
+        val profile = profile()
 
         service.initialize(
             RepositoryLocation("owner", "repository", "main"),
             "credential-alias",
             profile,
-            UUID.randomUUID().toString()
+            UUID.randomUUID().toString(),
+            transport.repositoryInfo
         )
 
         val commit = transport.createdCommits.single()
@@ -93,4 +87,45 @@ class RepositoryConnectionServiceTest {
         assertEquals("credential-alias", commit.credentialAlias)
         assertTrue(commit.actions.all { !it.binary })
     }
+
+    @Test
+    fun initializationCreatesMissingTargetBranchFromRepositoryDefault() = runBlocking {
+        transport.branchFailure = GiteeApiException(404, "branch not found")
+
+        service.initialize(
+            RepositoryLocation("owner", "repository", "review-data"),
+            "credential-alias",
+            profile(),
+            UUID.randomUUID().toString(),
+            transport.repositoryInfo.copy(defaultBranch = "main")
+        )
+
+        assertEquals(listOf("main" to "review-data"), transport.createdBranches)
+        assertEquals("review-data", transport.createdCommits.single().branch)
+    }
+
+    @Test
+    fun initializationLetsFirstCommitCreateBranchForEmptyRepository() = runBlocking {
+        transport.branchFailure = GiteeApiException(404, "branch not found")
+
+        service.initialize(
+            RepositoryLocation("owner", "repository", "master"),
+            "credential-alias",
+            profile(),
+            UUID.randomUUID().toString(),
+            transport.repositoryInfo.copy(defaultBranch = null)
+        )
+
+        assertTrue(transport.createdBranches.isEmpty())
+        assertEquals("master", transport.createdCommits.single().branch)
+    }
+
+    private fun profile() = Profile(
+        profileId = UUID.randomUUID().toString(),
+        displayName = "Profile",
+        timezone = "Asia/Shanghai",
+        algorithmId = "ebbinghaus-8-stage",
+        algorithmVersion = 1,
+        algorithmParametersJson = "{\"interval_days\":[1,2,4,7,15,30,60,120]}"
+    )
 }

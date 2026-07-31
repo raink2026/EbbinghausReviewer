@@ -127,7 +127,8 @@ class RepositorySettingsViewModel(application: Application) : AndroidViewModel(a
                             location,
                             alias,
                             profile,
-                            repositoryId
+                            repositoryId,
+                            inspection.repository
                         )
                         val binding = services.bindingService.initializeEmptyRepository(
                             profile,

@@ -307,7 +307,9 @@ App 使用 [Gitee 官方 API 文档](https://gitee.com/api/v5/swagger)中的批�
 POST /v5/repos/{owner}/{repo}/commits
 ```
 
-访问令牌放在 HTTPS `Authorization: token ...` 请求头中，不放入 URL 或请求体；请求体包含 `branch`、`message` 和 `actions`。正常数据同步只使用 `create` action；路径为 UUID 或内容哈希，文本使用 UTF-8，二进制图片使用 Base64。更新仓库控制文件时必须提供该文件的 `last_commit_id`，不能盲写。
+Gitee v5 的接口契约要求 GET 请求通过 HTTPS 查询参数传递 `access_token`，批量提交 POST 请求则在 JSON 请求体中传递 `access_token`；POST 请求体还包含 `branch`、`message` 和 `actions`，每个 action 使用 `path` 指定仓库路径。仓库元数据在空仓库中可能返回 `default_branch: null`，权限对象字段为 `permission`（兼容读取历史响应中的 `permissions`）。App 仅在从 Keystore 临时取出凭据后于内存中构造认证请求，不使用 `Authorization: token ...` 请求头，也不把认证 URL 或请求体写入日志、缓存、持久化数据或用户可见诊断。正常数据同步只使用 `create` action；路径为 UUID 或内容哈希，文本使用 UTF-8，二进制图片使用 Base64。更新仓库控制文件时必须提供该文件的 `last_commit_id`，不能盲写。
+
+空仓库允许首次批量 commit 直接创建分支；仓库已有其他分支时，批量 commit 不能创建一个不存在的目标分支。此时 App 先调用 `POST /v5/repos/{owner}/{repo}/branches`，用 `refs` 指向现有默认分支并以 `branch_name` 创建目标分支，然后再提交初始化控制文件。已存在分支中的缺失 content 可能返回 `HTTP 200` 与 `null` 或空数组，transport 将其规范化为 404 语义。
 
 单次同步将当前 Outbox 中满足依赖的 Markdown、图片和事件转换为 `actions` 数组，在一个普通 commit 中原子提交。一天允许多次同步和多次 commit。若单个笔记及图片超过批次大小上限，先用资产专用 commit 上传图片，全部确认后再提交引用它们的 Markdown；远端可以短暂存在未引用资产，但不能出现引用缺失资产的笔记。
 
@@ -505,7 +507,7 @@ App 内部的复习内容统一为 Markdown：
 - 网络通信只使用 HTTPS；
 - Bash 脚本不把凭据作为命令行参数传递。
 - 替换或清除令牌时取消该档案正在执行的网络请求；已落盘 Outbox 保留，新令牌验证成功后再恢复同步。
-- 令牌只在发起 HTTPS 请求时短暂解密到内存，请求结束后释放引用；HTTP 调试日志和缓存不得记录请求体中的 `access_token`。
+- 令牌只在发起 HTTPS 请求时短暂解密到内存，请求结束后释放引用；HTTP 调试日志、缓存、异常链和用户可见诊断不得记录认证 URL、请求体或其中的 `access_token`。
 - 连接测试只验证仓库与目标分支的最小读写权限，不创建永久测试文件；权限不足时展示 Gitee 返回的状态码和去敏错误信息。
 
 ## 16. 现有数据迁移

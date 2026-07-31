@@ -6,6 +6,7 @@ import com.ebbinghaus.review.data.security.CredentialStore
 import com.ebbinghaus.review.data.security.SecretRedactor
 import com.ebbinghaus.review.data.security.SecureLogger
 import com.google.gson.JsonArray
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
 data class GiteeRepositoryInfo(
     val owner: String,
     val name: String,
-    val defaultBranch: String,
+    val defaultBranch: String?,
     val privateRepository: Boolean,
     val canPush: Boolean
 )
@@ -69,6 +70,45 @@ class GiteeApiException(
     message: String = "Gitee API returned HTTP $statusCode"
 ) : IOException(message)
 
+private fun JsonElement.requireObject(context: String): JsonObject {
+    if (!isJsonObject) throw IOException("Gitee $context response was not a JSON object")
+    return asJsonObject
+}
+
+private fun JsonElement.requireArray(context: String): JsonArray {
+    if (!isJsonArray) throw IOException("Gitee $context response was not a JSON array")
+    return asJsonArray
+}
+
+private fun JsonElement.requireContentObject(): JsonObject {
+    if (isJsonObject) return asJsonObject
+    if (isJsonNull || (isJsonArray && asJsonArray.size() == 0)) {
+        throw GiteeApiException(statusCode = 404, responseBody = "Content not found")
+    }
+    throw IOException("Gitee content response was not a JSON object")
+}
+
+private fun JsonObject.objectOrNull(name: String): JsonObject? =
+    get(name)?.takeUnless { it.isJsonNull || !it.isJsonObject }?.asJsonObject
+
+private fun JsonObject.arrayOrNull(name: String): JsonArray? =
+    get(name)?.takeUnless { it.isJsonNull || !it.isJsonArray }?.asJsonArray
+
+private fun JsonObject.stringOrNull(name: String): String? =
+    get(name)?.takeUnless { it.isJsonNull || !it.isJsonPrimitive }
+        ?.asJsonPrimitive
+        ?.takeIf { it.isString }
+        ?.asString
+
+private fun JsonObject.booleanOrNull(name: String): Boolean? =
+    get(name)?.takeUnless { it.isJsonNull || !it.isJsonPrimitive }
+        ?.asJsonPrimitive
+        ?.takeIf { it.isBoolean }
+        ?.asBoolean
+
+private fun JsonObject.requireString(name: String, context: String): String =
+    stringOrNull(name) ?: throw IOException("Gitee $context response omitted $name")
+
 class CredentialCallRegistry : CredentialInvalidationHandler {
     private val calls = ConcurrentHashMap<String, MutableSet<Call>>()
 
@@ -101,6 +141,14 @@ interface GiteeTransport {
         owner: String,
         repository: String,
         branch: String,
+        credentialAlias: String
+    ): GiteeBranch
+
+    suspend fun createBranch(
+        owner: String,
+        repository: String,
+        refs: String,
+        branchName: String,
         credentialAlias: String
     ): GiteeBranch
 
@@ -164,16 +212,18 @@ class OkHttpGiteeTransport(
         repository: String,
         credentialAlias: String
     ): GiteeRepositoryInfo {
-        val json = get(repoUrl(owner, repository), credentialAlias).asJsonObject
-        val namespace = json.getAsJsonObject("namespace")
-        val permissions = json.getAsJsonObject("permissions")
+        val json = get(repoUrl(owner, repository), credentialAlias)
+            .requireObject("repository")
+        val namespace = json.objectOrNull("namespace")
+        val permissions = json.objectOrNull("permission")
+            ?: json.objectOrNull("permissions")
         return GiteeRepositoryInfo(
-            owner = namespace?.get("path")?.asString ?: owner,
-            name = json.get("path")?.asString ?: repository,
-            defaultBranch = json.get("default_branch")?.asString ?: "main",
-            privateRepository = json.get("private")?.asBoolean ?: true,
-            canPush = permissions?.get("push")?.asBoolean == true ||
-                permissions?.get("admin")?.asBoolean == true
+            owner = namespace?.stringOrNull("path") ?: owner,
+            name = json.stringOrNull("path") ?: repository,
+            defaultBranch = json.stringOrNull("default_branch"),
+            privateRepository = json.booleanOrNull("private") ?: true,
+            canPush = permissions?.booleanOrNull("push") == true ||
+                permissions?.booleanOrNull("admin") == true
         )
     }
 
@@ -184,10 +234,37 @@ class OkHttpGiteeTransport(
         credentialAlias: String
     ): GiteeBranch {
         val json = get(repoUrl(owner, repository).newBuilder().addPathSegments("branches")
-            .addPathSegment(branch).build(), credentialAlias).asJsonObject
+            .addPathSegment(branch).build(), credentialAlias).requireObject("branch")
+        val commit = json.objectOrNull("commit")
+            ?: throw IOException("Gitee branch response omitted commit")
         return GiteeBranch(
-            name = json.get("name")?.asString ?: branch,
-            headSha = json.getAsJsonObject("commit").get("sha").asString
+            name = json.stringOrNull("name") ?: branch,
+            headSha = commit.requireString("sha", "branch commit")
+        )
+    }
+
+    override suspend fun createBranch(
+        owner: String,
+        repository: String,
+        refs: String,
+        branchName: String,
+        credentialAlias: String
+    ): GiteeBranch {
+        require(refs.isNotBlank() && branchName.isNotBlank())
+        val payload = JsonObject().apply {
+            addProperty("refs", refs)
+            addProperty("branch_name", branchName)
+        }
+        val json = post(
+            repoUrl(owner, repository).newBuilder().addPathSegments("branches").build(),
+            payload,
+            credentialAlias
+        ).requireObject("create branch")
+        val commit = json.objectOrNull("commit")
+            ?: throw IOException("Gitee create branch response omitted commit")
+        return GiteeBranch(
+            name = json.stringOrNull("name") ?: branchName,
+            headSha = commit.requireString("sha", "created branch commit")
         )
     }
 
@@ -205,13 +282,13 @@ class OkHttpGiteeTransport(
             .addQueryParameter("page", page.toString())
             .addQueryParameter("per_page", perPage.toString())
             .build()
-        return get(url, credentialAlias).asJsonArray.map { element ->
-            val json = element.asJsonObject
-            val commit = json.getAsJsonObject("commit")
+        return get(url, credentialAlias).requireArray("commit list").map { element ->
+            val json = element.requireObject("commit list entry")
+            val commit = json.objectOrNull("commit")
             GiteeCommitSummary(
-                sha = json.get("sha").asString,
-                message = commit?.get("message")?.asString.orEmpty(),
-                authoredAt = commit?.getAsJsonObject("author")?.get("date")?.asString
+                sha = json.requireString("sha", "commit list entry"),
+                message = commit?.stringOrNull("message").orEmpty(),
+                authoredAt = commit?.objectOrNull("author")?.stringOrNull("date")
             )
         }
     }
@@ -225,7 +302,7 @@ class OkHttpGiteeTransport(
         repoUrl(owner, repository).newBuilder().addPathSegments("commits")
             .addPathSegment(sha).build(),
         credentialAlias
-    ).asJsonObject
+    ).requireObject("commit")
 
     override suspend fun getContent(
         owner: String,
@@ -238,13 +315,13 @@ class OkHttpGiteeTransport(
             .addPathSegments(path.trim('/'))
             .addQueryParameter("ref", ref)
             .build()
-        val json = get(url, credentialAlias).asJsonObject
-        val content = json.get("content")?.asString.orEmpty().replace("\n", "")
+        val json = get(url, credentialAlias).requireContentObject()
+        val content = json.requireString("content", "content").replace("\n", "")
         return GiteeRemoteFile(
-            path = json.get("path")?.asString ?: path,
-            sha = json.get("sha").asString,
+            path = json.stringOrNull("path") ?: path,
+            sha = json.requireString("sha", "content"),
             bytes = Base64.getDecoder().decode(content),
-            lastCommitSha = json.get("last_commit_id")?.asString
+            lastCommitSha = json.stringOrNull("last_commit_id")
         )
     }
 
@@ -259,13 +336,14 @@ class OkHttpGiteeTransport(
             .addPathSegment(sha)
             .addQueryParameter("recursive", if (recursive) "1" else "0")
             .build()
-        val tree = get(url, credentialAlias).asJsonObject.getAsJsonArray("tree") ?: JsonArray()
+        val tree = get(url, credentialAlias).requireObject("tree")
+            .arrayOrNull("tree") ?: JsonArray()
         return tree.map { element ->
-            val json = element.asJsonObject
+            val json = element.requireObject("tree entry")
             GiteeTreeEntry(
-                path = json.get("path").asString,
-                type = json.get("type").asString,
-                sha = json.get("sha").asString,
+                path = json.requireString("path", "tree entry"),
+                type = json.requireString("type", "tree entry"),
+                sha = json.requireString("sha", "tree entry"),
                 size = json.get("size")?.takeUnless { it.isJsonNull }?.asLong
             )
         }
@@ -281,11 +359,11 @@ class OkHttpGiteeTransport(
             repoUrl(owner, repository).newBuilder().addPathSegments("git/blobs")
                 .addPathSegment(sha).build(),
             credentialAlias
-        ).asJsonObject
+        ).requireObject("blob")
         return GiteeBlob(
-            sha = json.get("sha")?.asString ?: sha,
+            sha = json.stringOrNull("sha") ?: sha,
             bytes = Base64.getDecoder().decode(
-                json.get("content").asString.replace("\n", "")
+                json.requireString("content", "blob").replace("\n", "")
             )
         )
     }
@@ -306,7 +384,7 @@ class OkHttpGiteeTransport(
                 actions.forEach { action ->
                     add(JsonObject().apply {
                         addProperty("action", "create")
-                        addProperty("file_path", action.path)
+                        addProperty("path", action.path)
                         addProperty(
                             "content",
                             if (action.binary) Base64.getEncoder().encodeToString(action.content)
@@ -321,33 +399,40 @@ class OkHttpGiteeTransport(
             repoUrl(owner, repository).newBuilder().addPathSegments("commits").build(),
             payload,
             credentialAlias
-        ).asJsonObject
-        val sha = json.get("sha")?.asString
-            ?: json.getAsJsonObject("commit")?.get("sha")?.asString
+        ).requireObject("create commit")
+        val sha = json.stringOrNull("sha")
+            ?: json.objectOrNull("commit")?.stringOrNull("sha")
             ?: error("Gitee commit response omitted SHA")
         return GiteeCreatedCommit(sha, json)
     }
 
     private suspend fun get(url: HttpUrl, credentialAlias: String) = execute(
-        Request.Builder().url(url).get(),
         credentialAlias
-    )
+    ) { token ->
+        val authenticatedUrl = url.newBuilder()
+            .addQueryParameter("access_token", token)
+            .build()
+        Request.Builder().url(authenticatedUrl).get()
+    }
 
     private suspend fun post(url: HttpUrl, payload: JsonObject, credentialAlias: String) = execute(
-        Request.Builder().url(url).post(
-            payload.toString().toRequestBody(JSON_MEDIA_TYPE)
-        ),
         credentialAlias
-    )
+    ) { token ->
+        val authenticatedPayload = payload.deepCopy().apply {
+            addProperty("access_token", token)
+        }
+        Request.Builder().url(url).post(
+            authenticatedPayload.toString().toRequestBody(JSON_MEDIA_TYPE)
+        )
+    }
 
     private suspend fun execute(
-        requestBuilder: Request.Builder,
-        credentialAlias: String
+        credentialAlias: String,
+        requestFactory: (String) -> Request.Builder
     ) = withContext(Dispatchers.IO) {
         credentialStore.withCredential(credentialAlias) { credential ->
             val token = String(credential)
-            val request = requestBuilder
-                .header("Authorization", "token $token")
+            val request = requestFactory(token)
                 .header("Accept", "application/json")
                 .build()
             val call = client.newCall(request)
@@ -365,9 +450,11 @@ class OkHttpGiteeTransport(
                     }
                     JsonParser.parseString(body)
                 }
-            } catch (error: IOException) {
-                logger.error("GiteeTransport", "Gitee request failed", error, listOf(token))
+            } catch (error: GiteeApiException) {
                 throw error
+            } catch (_: IOException) {
+                logger.error("GiteeTransport", NETWORK_ERROR_MESSAGE)
+                throw IOException(NETWORK_ERROR_MESSAGE)
             } finally {
                 callRegistry.unregister(credentialAlias, call)
             }
@@ -401,5 +488,6 @@ class OkHttpGiteeTransport(
         val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         val SAFE_REPOSITORY_SEGMENT = Regex("[A-Za-z0-9_.-]{1,100}")
         const val MAX_ERROR_BODY = 4096
+        const val NETWORK_ERROR_MESSAGE = "Unable to reach Gitee"
     }
 }

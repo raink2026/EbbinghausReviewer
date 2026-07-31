@@ -14,6 +14,7 @@ internal class FakeGiteeTransport : GiteeTransport {
     var repositoryInfo = GiteeRepositoryInfo("owner", "repository", "main", true, true)
     var branchValue = GiteeBranch("main", "head")
     var branchFailure: GiteeApiException? = null
+    val createdBranches = mutableListOf<Pair<String, String>>()
     val commitPages = mutableMapOf<Int, List<GiteeCommitSummary>>()
     val commitDetails = mutableMapOf<String, JsonObject>()
     val contents = mutableMapOf<Pair<String, String>, GiteeRemoteFile>()
@@ -38,6 +39,19 @@ internal class FakeGiteeTransport : GiteeTransport {
         credentialAlias: String
     ): GiteeBranch {
         branchFailure?.let { throw it }
+        return branchValue
+    }
+
+    override suspend fun createBranch(
+        owner: String,
+        repository: String,
+        refs: String,
+        branchName: String,
+        credentialAlias: String
+    ): GiteeBranch {
+        createdBranches += refs to branchName
+        branchFailure = null
+        branchValue = GiteeBranch(branchName, branchValue.headSha)
         return branchValue
     }
 

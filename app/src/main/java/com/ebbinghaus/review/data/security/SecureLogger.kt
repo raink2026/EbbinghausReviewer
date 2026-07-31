@@ -3,11 +3,12 @@ package com.ebbinghaus.review.data.security
 import android.util.Log
 
 object SecretRedactor {
-    private val bearerPattern = Regex("(?i)(authorization\\s*[:=]\\s*bearer\\s+)[^\\s,;]+")
+    private val authorizationPattern =
+        Regex("(?i)(authorization\\s*[:=]\\s*(?:bearer|token)\\s+)[^\\s,;]+")
     private val tokenParameterPattern = Regex("(?i)(access_token\\s*[=:]\\s*)[^&\\s,;}]+")
 
     fun redact(message: String, sensitiveValues: Iterable<String> = emptyList()): String {
-        var sanitized = bearerPattern.replace(message, "$1<redacted>")
+        var sanitized = authorizationPattern.replace(message, "$1<redacted>")
         sanitized = tokenParameterPattern.replace(sanitized, "$1<redacted>")
         sensitiveValues.filter { it.isNotEmpty() }.forEach { value ->
             sanitized = sanitized.replace(value, "<redacted>")

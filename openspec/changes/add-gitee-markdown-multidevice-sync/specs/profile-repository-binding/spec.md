@@ -50,7 +50,7 @@ The App MUST store the Gitee personal access token in Android Keystore-backed se
 
 #### Scenario: Emit diagnostic information
 - **WHEN** networking, crash reporting, or synchronization logging records a request failure
-- **THEN** the system MUST redact the personal access token from URLs, headers, bodies, logs, and user-visible diagnostics
+- **THEN** the system MUST redact the personal access token from every recorded or serialized URL, header, body, log, exception chain, and user-visible diagnostic while allowing the ephemeral HTTPS request to carry credentials in the location required by the Gitee v5 contract
 
 ### Requirement: Repository switching preserves pending data
 The system SHALL treat changing repository identity as importing or selecting the different profile bound to that repository and SHALL NOT mutate the current profile's repository identity or retarget its pending operations.

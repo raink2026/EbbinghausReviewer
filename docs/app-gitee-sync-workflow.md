@@ -113,7 +113,7 @@ Typora 可以直接阅读所有 Markdown。已提交快照只能读，不能原�
 
 - App 只在 Keystore 支持的安全存储中保存令牌，Room 仅记录 credential alias。
 - 替换或清除令牌会取消使用旧 alias 的在途 HTTP 请求，不删除 outbox。
-- 分享日志前仍应检查 Git remote、credential helper 和系统代理输出；App 自身会脱敏 Authorization、`access_token` 和已知令牌值。
+- Gitee v5 的 App REST 请求会在 GET 查询参数或 POST JSON 请求体中携带 `access_token`；App 不记录认证 URL、请求体或原始网络异常链，并会脱敏 Authorization、`access_token` 和已知令牌值。分享日志前仍应检查 Git remote、credential helper 和系统代理输出。
 - 单个 v1 图片上限为 10 MiB。超限时压缩或替换原图，不能静默改变仓库中的既有资产。
 - App 单轮最多发布 20 个批次；提交历史每页读取 100 条，并持续遍历到精确 checkpoint 或仓库根。真实 Gitee 请求体与限流边界仍以专用沙箱合约结果为准。
 

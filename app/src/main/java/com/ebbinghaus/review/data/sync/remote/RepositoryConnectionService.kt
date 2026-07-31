@@ -88,8 +88,10 @@ class RepositoryConnectionService(
         location: RepositoryLocation,
         credentialAlias: String,
         profile: Profile,
-        repositoryId: String
+        repositoryId: String,
+        repository: GiteeRepositoryInfo
     ): GiteeCreatedCommit {
+        ensureTargetBranch(location, credentialAlias, repository)
         val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
         val algorithmParameters = JsonParser.parseString(profile.algorithmParametersJson).asJsonObject
         val profileJson = JsonObject().apply {
@@ -142,6 +144,32 @@ class RepositoryConnectionService(
             "chore: initialize Ebbinghaus repository format",
             actions,
             credentialAlias
+        )
+    }
+
+    private suspend fun ensureTargetBranch(
+        location: RepositoryLocation,
+        credentialAlias: String,
+        repository: GiteeRepositoryInfo
+    ) {
+        try {
+            transport.getBranch(
+                location.owner,
+                location.name,
+                location.branch,
+                credentialAlias
+            )
+            return
+        } catch (error: GiteeApiException) {
+            if (error.statusCode != 404) throw error
+        }
+        val baseBranch = repository.defaultBranch ?: return
+        transport.createBranch(
+            owner = location.owner,
+            repository = location.name,
+            refs = baseBranch,
+            branchName = location.branch,
+            credentialAlias = credentialAlias
         )
     }
 

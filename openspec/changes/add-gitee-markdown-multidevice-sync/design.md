@@ -147,7 +147,7 @@ Version 1 targets Bash 4+, Git 2.30+, Python 3.9+, `yq` v4, and `jq` 1.6+ on Lin
 - **Malformed desktop commits** -> Quarantine invalid commits/files, keep the last valid projection active, and require the Bash validator before publication.
 - **Concurrent revision or event branches** -> Preserve all branches, expose explicit conflict states, and pause automatic scheduling until resolution.
 - **Remote force-push by an external user** -> Detect an unreachable checkpoint, stop incremental sync, and require a full-tree rebuild preview.
-- **Token exposure** -> Use Keystore-backed storage, redact request bodies and logs, cancel in-flight requests on credential replacement, and never place credentials in command arguments.
+- **Token exposure** -> Follow Gitee v5's required GET query-parameter and POST body authentication only in ephemeral HTTPS requests; use Keystore-backed storage, never log or cache authenticated URLs/bodies or preserve token-bearing exception chains, cancel in-flight requests on credential replacement, and never place credentials in command arguments.
 - **Migration cannot infer old user ownership** -> Require the user to choose one destination profile for the existing global dataset instead of guessing.
 - **New format is a broad breaking change** -> Roll out schema/desktop validation first, keep the legacy database and images read-only during migration, and require a successful remote restore rehearsal before cleanup.
 
